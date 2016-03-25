@@ -218,3 +218,12 @@ def build(builder, modules):
         yield
         builder([args.module] if args.module else modules, args.debug)
     return builder
+
+
+def clean(*paths):
+    def clean(args):
+        'Clean generated files.'
+        yield
+        for path in paths:
+            os.remove(path)
+    return clean

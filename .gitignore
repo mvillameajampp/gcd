@@ -4,4 +4,4 @@ gcd.egg-info
 __pycache__
 *.pyc
 *.swp
-
+*.swo
