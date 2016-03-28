@@ -7,8 +7,8 @@ import argparse
 from os import path
 from itertools import chain
 
-from gcd.utils import as_many, cwd
-from gcd.work import sh as _sh
+from gcd.etc import as_many
+from gcd.work import sh as _sh, cwd
 
 
 def rule(fun):
@@ -59,9 +59,12 @@ def run(commands=None, argv=sys.argv):
             next(args._gen)
         except StopIteration:
             pass
+_parser = argparse.ArgumentParser()
+arg = _parser.add_argument
+arg('--quiet', '-q', action='store_true', help='Omit messages.')
 
 
-def out(msg):
+def echo(msg):
     if args.quiet:
         return
     try:
@@ -75,7 +78,7 @@ def out(msg):
 
 
 def sh(cmd, exit=True):
-    out(cmd)
+    echo(cmd)
     code = os.system(cmd)
     if exit and code != 0:
         sys.exit(1)
@@ -95,11 +98,6 @@ def cmdclass(install=None, clean=None):
                         super().run()
             cmdclass[name] = _
     return cmdclass
-
-
-_parser = argparse.ArgumentParser()
-arg = _parser.add_argument
-arg('--quiet', '-q', action='store_true', help='Omit messages.')
 
 
 # ------------------------------ Rules ----------------------------------------
@@ -224,6 +222,6 @@ def clean(*paths):
     def clean(args):
         'Clean generated files.'
         yield
-        for path in paths:
+        for path in paths:  # noqa
             os.remove(path)
     return clean

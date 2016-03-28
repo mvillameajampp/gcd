@@ -1,10 +1,12 @@
 import logging
 import os
 import subprocess
+import fcntl
 import multiprocessing as mp
 import threading as mt
 
 from queue import Empty, Queue
+from contextlib import contextmanager
 
 from gcd.chronos import Timer
 
@@ -14,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 class Process(mp.Process):
 
-    def __init__(self, target, *args, daemon=True, **kwargs):
+    def __init__(self, target=None, *args, daemon=True, **kwargs):
         mp.Process.__init__(self, target=target, daemon=daemon, args=args,
                             kwargs=kwargs)
 
@@ -25,7 +27,7 @@ class Process(mp.Process):
 
 class Thread(mt.Thread):
 
-    def __init__(self, target, *args, daemon=True, **kwargs):
+    def __init__(self, target=None, *args, daemon=True, **kwargs):
         mt.Thread.__init__(self, target=target, daemon=daemon, args=args,
                            kwargs=kwargs)
 
@@ -105,6 +107,26 @@ def dequeue(queue, at_least=1):
             yield queue.get_nowait()
     except Empty:
         pass
+
+
+@contextmanager
+def flock(path):
+    with open(path, 'w') as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            fcntl.flock(lock, fcntl.LOCK_UN)
+
+
+@contextmanager
+def cwd(path):
+    prev = os.getcwd()
+    os.chdir(path)
+    try:
+        yield
+    finally:
+        os.chdir(prev)
 
 
 def sh(cmd, input=None, capture=True, lines=False, exec=False):

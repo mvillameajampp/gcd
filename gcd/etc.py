@@ -1,13 +1,8 @@
-import os
 import operator
-import logging
-import json
-import datetime
 import subprocess
 
 from itertools import islice, chain
 from functools import reduce
-from contextlib import contextmanager
 
 from gcd.work import sh
 
@@ -66,16 +61,6 @@ def dmenu(choices=[], *args):
         return None
 
 
-@contextmanager
-def cwd(path):
-    prev = os.getcwd()
-    os.chdir(path)
-    try:
-        yield
-    finally:
-        os.chdir(prev)
-
-
 class BundleMixin:
 
     def __eq__(self, other):
@@ -92,39 +77,6 @@ class Bundle(BundleMixin):
 
 
 Config = Bundle
-
-
-class JsonDateTimeEncoder(json.JSONEncoder):
-
-    def default(self, obj):
-        if isinstance(obj, (datetime.datetime, datetime.date)):
-            return obj.isoformat()
-        else:
-            return json.JSONEncoder.default(self, obj)
-
-
-class JsonFormatter(logging.Formatter, json.JSONEncoder):
-
-    def __init__(self, attrs=[], encoder=JsonDateTimeEncoder):
-        logging.Formatter.__init__(self)
-        self._attrs = attrs
-        self._encoder = JsonDateTimeEncoder
-
-    def format(self, record):
-        log = {}
-        if isinstance(record.msg, dict):
-            log.update(record.msg)
-        else:
-            log['message'] = record.getMessage()
-        if record.exc_info:
-            log['exc_info'] = self.formatException(record.exc_info)
-        for attr in self._attrs:
-            if attr == 'asctime':
-                val = self.formatTime(record)
-            else:
-                val = getattr(record, attr, None)
-            log[attr] = val
-        return json.dumps(log, cls=JsonDateTimeEncoder)
 
 
 class PositionalAttribute:

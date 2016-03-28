@@ -4,12 +4,13 @@ import socket
 import os
 import sys
 import pdb
-import fcntl
 import pprint
 
 from inspect import currentframe, getframeinfo
 from contextlib import contextmanager
 from pprint import PrettyPrinter
+
+from gcd.work import flock
 
 try:
     import builtins
@@ -58,8 +59,6 @@ def fbrk():
 def install_builtins():
     for attr in __all__:
         setattr(builtins, attr, globals()[attr])
-if os.environ.get('PYDEV'):
-    devel.install_builtins()
 
 
 @contextmanager
@@ -115,13 +114,3 @@ class ForkablePdb(pdb.Pdb):
 
     def _cmdloop(self):
         self.cmdloop()
-
-
-@contextmanager
-def flock(path):
-    with open(path, 'w') as lock:
-        fcntl.flock(lock, fcntl.LOCK_EX)
-        try:
-            yield
-        finally:
-            fcntl.flock(lock, fcntl.LOCK_UN)

@@ -4,7 +4,7 @@ import logging
 
 from threading import Thread
 
-from gcd.utils import Bundle
+from gcd.etc import Bundle
 from gcd.work import dequeue, Task
 
 

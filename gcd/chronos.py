@@ -2,7 +2,7 @@ import os
 import time
 
 
-millisecond = milliseconds = 1 / 1000
+ms = millisecond = milliseconds = 1 / 1000
 second = seconds = 1000 * milliseconds
 minute = minutes = 60 * seconds
 hour = hours = 60 * minutes
@@ -34,11 +34,12 @@ def set_timezone(timezone=None):
 
 class Timer:
 
-    def __init__(self, period, now=False, cron=False):
+    def __init__(self, period, start_now=False, align=False):
+        assert not (start_now and align)
         self.period = period
-        now_ = time.time()
-        last_time = (int(now_ / period) * period) if cron else now_
-        self._next_time = last_time + (0 if now else period)
+        now = time.time()
+        last_time = (int(now / period) * period) if align else now
+        self._next_time = last_time + (0 if start_now else period)
 
     @property
     def is_time(self):
