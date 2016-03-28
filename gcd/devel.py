@@ -58,6 +58,8 @@ def fbrk():
 def install_builtins():
     for attr in __all__:
         setattr(builtins, attr, globals()[attr])
+if os.environ.get('PYDEV'):
+    devel.install_builtins()
 
 
 @contextmanager

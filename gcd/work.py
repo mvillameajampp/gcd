@@ -112,7 +112,7 @@ def sh(cmd, input=None, capture=True, lines=False, exec=False):
     if exec:
         os.execl('/bin/sh', '/bin/sh', '-c', cmd)
     else:
-        stdin = subprocess.PIPE if input else None
+        stdin = subprocess.PIPE if input is not None else None
         stdout = subprocess.PIPE if capture else None
         stderr = subprocess.PIPE if capture else None
         proc = subprocess.Popen(cmd, shell=True, universal_newlines=True,
@@ -122,4 +122,4 @@ def sh(cmd, input=None, capture=True, lines=False, exec=False):
             raise subprocess.CalledProcessError(
                 proc.returncode, cmd, output, error)
         else:
-            return (output.strip().split('\n') or []) if lines else output
+            return output.split('\n')[:-1] if lines else output

@@ -55,7 +55,7 @@ def load_pyconfig(file_or_path, config=None):
     return config
 
 
-def dmenu(choices, *args):
+def dmenu(choices=[], *args):
     try:
         cmd = 'dmenu ' + ' '.join(args)
         choices = '\n'.join(choices)
