@@ -17,7 +17,7 @@ def rule(fun):
         gen = fun(*args, **kwargs)
         paths = next(gen)
         if type(paths) is str:
-            inputs, output = paths, []
+            inputs, output = [], paths
         else:
             *inputs, output = paths
         mtimes = {i: path.getmtime(i)
