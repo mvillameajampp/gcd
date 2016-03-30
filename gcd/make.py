@@ -215,7 +215,7 @@ def build(builder, modules):
             help='Build only the specified module.')
         yield
         builder([args.module] if args.module else modules, args.debug)
-    return builder
+    return build
 
 
 def clean(*paths):

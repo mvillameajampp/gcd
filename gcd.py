@@ -1,4 +1,4 @@
-#!/bin/python
+#!/usr/bin/env python
 
 from gcd.make import command, pylint, pytest, run
 

@@ -7,6 +7,10 @@ from functools import reduce
 from gcd.work import sh
 
 
+def sign(x):
+    return -1 if x < 0 else 1
+
+
 def product(iterable, start=1):
     return reduce(operator.mul, iterable, start)
 
