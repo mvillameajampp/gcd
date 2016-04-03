@@ -3,7 +3,7 @@ import time
 import shutil
 import tempfile
 
-from unittest import TestCase
+from unittest import TestCase, main
 
 from gcd.make import rule
 
@@ -91,3 +91,7 @@ class TestRule(TestCase):
     def test_rule_with_no_ins(self):
         rule2()
         self.assertTrue(rule2.called)
+
+
+if __name__ == '__main__':
+    main()

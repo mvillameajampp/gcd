@@ -1,6 +1,6 @@
 import time
 
-from unittest import TestCase
+from unittest import TestCase, main
 from unittest.mock import Mock, patch, call
 
 from gcd.cache import NA, Miss, Cache, AsynCache
@@ -68,3 +68,7 @@ class TestAsynCache(TestCase):
         self.assertEqual(cache['b'], 2)
         with self.assertRaises(KeyError):
             cache['c']
+
+
+if __name__ == '__main__':
+    main()

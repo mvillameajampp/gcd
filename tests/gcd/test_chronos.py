@@ -1,6 +1,6 @@
 import time
 
-from unittest import TestCase
+from unittest import TestCase, main
 from unittest.mock import Mock, patch
 
 from gcd.chronos import Timer, LeakyBucket
@@ -59,3 +59,7 @@ class TestLeakyBucket(TestCase):
         self.assertAlmostEqual(t2 - t1, 0.05, delta=0.01)
         self.assertAlmostEqual(t4 - t3, 0, delta=0.01)
         self.assertAlmostEqual(t5 - t4, 0.05, delta=0.01)
+
+
+if __name__ == '__main__':
+    main()

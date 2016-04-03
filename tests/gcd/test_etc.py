@@ -1,4 +1,4 @@
-from unittest import TestCase
+from unittest import TestCase, main
 
 from gcd.etc import product, chunks, as_many, Bundle
 
@@ -25,3 +25,7 @@ class TestFunctions(TestCase):
         self.assertEqual(bundle1.b, 2)
         bundle2 = Bundle(a=1, b=2)
         self.assertEqual(bundle1, bundle2)
+
+
+if __name__ == '__main__':
+    main()
