@@ -1,10 +1,7 @@
 import operator
-import subprocess
 
 from itertools import islice, chain
 from functools import reduce
-
-from gcd.work import sh
 
 
 def sign(x):
@@ -52,17 +49,6 @@ def load_pyconfig(file_or_path, config=None):
     config.__dict__['Config'] = Config
     exec(as_file(file_or_path).read(), config.__dict__)
     return config
-
-
-def dmenu(choices=[], *args):
-    try:
-        cmd = 'dmenu ' + ' '.join(args)
-        choices = '\n'.join(choices)
-        return sh(cmd, choices).strip()
-    except subprocess.CalledProcessError as error:
-        if error.stderr:
-            raise
-        return None
 
 
 class BundleMixin:

@@ -8,6 +8,7 @@ import threading as mt
 from queue import Empty, Queue
 from contextlib import contextmanager
 
+from gcd.etc import Bundle
 from gcd.chronos import Timer
 
 
@@ -129,19 +130,12 @@ def cwd(path):
         os.chdir(prev)
 
 
-def sh(cmd, input=None, capture=True, lines=False, exec=False):
-    assert not ((input or lines) and exec)
-    if exec:
-        os.execl('/bin/sh', '/bin/sh', '-c', cmd)
-    else:
-        stdin = subprocess.PIPE if input is not None else None
-        stdout = subprocess.PIPE if capture else None
-        stderr = subprocess.PIPE if capture else None
-        proc = subprocess.Popen(cmd, shell=True, universal_newlines=True,
-                                stdin=stdin, stdout=stdout, stderr=stderr)
-        output, error = proc.communicate(input)
-        if proc.returncode != 0:
-            raise subprocess.CalledProcessError(
-                proc.returncode, cmd, output, error)
-        else:
-            return output.split('\n')[:-1] if lines else output
+def sh(cmd, input=None):
+    stdin = subprocess.PIPE if input is not None else None
+    proc = subprocess.Popen(cmd, shell=True, universal_newlines=True,
+                            stdin=stdin, stdout=subprocess.PIPE,
+                            stderr=subprocess.PIPE)
+    out, err = proc.communicate(input)
+    return Bundle(out=out, err=err, code=proc.returncode,
+                  lines=lambda: out.split('\n')[:-1])
+sh.quote = lambda text: "'%s'" % text.replace("'", "'\\''")
