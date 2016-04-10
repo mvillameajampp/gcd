@@ -131,11 +131,20 @@ def cwd(path):
 
 
 def sh(cmd, input=None):
-    stdin = subprocess.PIPE if input is not None else None
+    if not isinstance(cmd, str):
+        cmd = cmd[0] % tuple(sh.quote(arg) for arg in cmd[1:])
+    if input is not None and not isinstance(input, str):
+        input = '\n'.join(input)
+    stdin = None if input is None else subprocess.PIPE
+    stdout = stderr = None if cmd.rstrip().endswith('&') else subprocess.PIPE
     proc = subprocess.Popen(cmd, shell=True, universal_newlines=True,
-                            stdin=stdin, stdout=subprocess.PIPE,
-                            stderr=subprocess.PIPE)
-    out, err = proc.communicate(input)
-    return Bundle(out=out, err=err, code=proc.returncode,
-                  lines=lambda: out.split('\n')[:-1])
+                            stdin=stdin, stdout=stdout, stderr=stderr)
+    if stdin or stdout:
+        output, error = proc.communicate(input)
+    if stdout:
+        if proc.returncode != 0 or error:
+            raise sh.Error(proc.returncode, cmd, output, error)
+        else:
+            return output.rstrip('\n')
 sh.quote = lambda text: "'%s'" % text.replace("'", "'\\''")
+sh.Error = subprocess.CalledProcessError
