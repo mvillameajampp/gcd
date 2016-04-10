@@ -8,7 +8,6 @@ import threading as mt
 from queue import Empty, Queue
 from contextlib import contextmanager
 
-from gcd.etc import Bundle
 from gcd.chronos import Timer
 
 
