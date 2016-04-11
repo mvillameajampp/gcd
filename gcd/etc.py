@@ -1,5 +1,4 @@
 import operator
-import argparse
 
 from itertools import islice, chain
 from functools import reduce
@@ -50,11 +49,6 @@ def load_pyconfig(file_or_path, config=None):
     config.__dict__['Config'] = Config
     exec(as_file(file_or_path).read(), config.__dict__)
     return config
-
-
-def arg_parser(*args, **kwargs):
-    parser = argparse.ArgumentParser(*args, **kwargs)
-    return parser.add_argument, parser.parse_args
 
 
 class BundleMixin:

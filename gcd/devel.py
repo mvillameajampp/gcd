@@ -10,7 +10,7 @@ from inspect import currentframe, getframeinfo
 from contextlib import contextmanager
 from pprint import PrettyPrinter
 
-from gcd.work import flock
+from gcd.nix import flock
 
 try:
     import builtins

@@ -8,7 +8,7 @@ from os import path
 from itertools import chain
 
 from gcd.etc import as_many
-from gcd.work import sh as _sh, cwd
+from gcd.nix import sh as _sh, cwd
 
 
 def rule(fun):
