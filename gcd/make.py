@@ -6,7 +6,7 @@ import textwrap
 from itertools import chain
 
 from gcd.etc import as_many
-from gcd.nix import sh as _sh, sh_quote, cmd, path, argv
+from gcd.nix import sh as _sh, sh_quote, cmd, cwd, path, argv
 
 
 def rule(fun):
@@ -139,7 +139,7 @@ def pylint(omit=[]):
     def lint():
         'Run flake8 linter'
         yield
-        sh("shopt -s globstar; flake8 -v --exclude '%s' **/*.py" %
+        sh("shopt -s globstar; flake8 -v --exclude '%s' **/*.py || true" %
            ','.join(as_many(omit)))
     return lint
 
