@@ -2,13 +2,11 @@ import os
 import sys
 import shelve
 import textwrap
-import argparse
 
-from os import path
 from itertools import chain
 
 from gcd.etc import as_many
-from gcd.nix import sh as _sh, cwd
+from gcd.nix import sh as _sh, sh_quote, cmd, path, argv
 
 
 def rule(fun):
@@ -37,38 +35,16 @@ def rule(fun):
 _memo = '.%s.memo' % path.splitext(path.basename(sys.argv[0]))[0]
 
 
-def command(fun, name=None):
-    if name:
-        fun.__name__ = name
-    _commands.append(fun)
-_commands = []
-
-
-def run(commands=None, argv=sys.argv):
-    global args
-    with cwd(path.dirname(argv[0]) or '.'):
-        subparsers = _parser.add_subparsers(dest='_cmd')
-        subparsers.required = True
-        for cmd in commands or _commands:
-            subparser = subparsers.add_parser(cmd.__name__, help=cmd.__doc__)
-            gen = cmd(subparser.add_argument)
-            subparser.set_defaults(_gen=gen)
-            next(gen)
-        args = _parser.parse_args(argv[1:])
-        try:
-            next(args._gen)
-        except StopIteration:
-            pass
-_parser = argparse.ArgumentParser()
-arg = _parser.add_argument
-arg('--quiet', '-q', action='store_true', help='Omit messages.')
+def make():
+    os.chdir(path.dirname(argv[0]))
+    cmd.arg('--quiet', '-q', action='store_true', help='Omit messages.')
 
 
 def echo(msg):
-    if args.quiet:
+    if cmd.args.quiet:
         return
     try:
-        width = int(_sh('stty size').split()[1])
+        width = int(_sh('stty size|').split()[1])
     except:
         width = 80
     lines = textwrap.wrap(msg, width=width)
@@ -77,26 +53,22 @@ def echo(msg):
     print('\n\033[1m%s\n%s\n%s\n\033[0m' % (bar, msg, bar), flush=True)
 
 
-def sh(cmd, exit=True):
+def sh(cmd, input=None):
     echo(cmd)
-    code = os.system(cmd)
-    if exit and code != 0:
-        sys.exit(1)
-    return code
+    return _sh(cmd, input)
 
 
-def cmdclass(install=None, clean=None):
-    from setuptools.command.install import install as install_
+def cmdclass(build=None, clean=None):
+    from setuptools.command.install import install
     from distutils.command.clean import clean as clean_
     cmdclass = {}
-    for name, cls, cmd in (('install', install_, install),
-                           ('clean', clean_, clean)):
+    for cls, cmd in (install, build), (clean_, clean):  # noqa
         if cmd:
             class _(cls):
                 def run(self, cmd=cmd):
-                    if os.system(cmd) == 0:
-                        super().run()
-            cmdclass[name] = _
+                    _sh(cmd)
+                    super().run()
+            cmdclass[cls.__name__] = _
     return cmdclass
 
 
@@ -122,21 +94,21 @@ def preprocess(pre, post, context={}, markers=['$', '$', '@', '`', '`']):
 
 
 @rule
-def ccompile(source, output='%(base)s.%(ext)s', includes=[], libraries=[],
-             include_dirs=[], library_dirs=[], cpp=False, debug=False,
-             shared=True, clang=False, capi=False):
+def ccompile(source, output='%(base)s.%(ext)s', incs=[], libs=[], inc_dirs=[],
+             lib_dirs=[], cpp=False, debug=False, shared=True, clang=False,
+             capi=False):
     def add_options(flag, options):
         return (' ' + ' '.join(flag + o for o in options)) if options else ''
     output_base = path.splitext(source)[0]
     output_ext = '.so' if shared else '.o'
     output %= {'base': output_base, 'ext': output_ext}
-    yield source, includes, output
+    yield source, incs, output
     if capi:
         base = path.dirname(path.dirname(path.abspath(sys.executable)))
         python = 'python' + sys.version[:3]
-        include_dirs.append(path.join(base, 'include', python + sys.abiflags))
-        library_dirs.append(path.join(base, 'lib', python))
-        libraries.append(python + sys.abiflags)
+        inc_dirs.append(path.join(base, 'include', python + sys.abiflags))
+        lib_dirs.append(path.join(base, 'lib', python))
+        libs.append(python + sys.abiflags)
     if cpp:
         cmd = ('clang++' if clang else 'g++') + ' --std=c++14'
     else:
@@ -144,9 +116,9 @@ def ccompile(source, output='%(base)s.%(ext)s', includes=[], libraries=[],
     cmd += ' -Werror'
     cmd += ' -g' if debug else ' -O3'
     cmd += ' -fPIC --shared' if shared else ''
-    cmd += add_options('-I', include_dirs)
-    cmd += add_options('-L', library_dirs)
-    cmd += add_options('-l', libraries)
+    cmd += add_options('-I', inc_dirs)
+    cmd += add_options('-L', lib_dirs)
+    cmd += add_options('-l', libs)
     sh('%s -o %s %s' % (cmd, output, source))
 
 
@@ -164,40 +136,41 @@ def cythonize(source, debug=False, annotate=False):
 
 
 def pylint(omit=[]):
-    def lint(_):
+    def lint():
         'Run flake8 linter'
         yield
-        sh("shopt -s globstar; flake8 --exclude '%s' **/*.py" %
+        sh("shopt -s globstar; flake8 -v --exclude '%s' **/*.py" %
            ','.join(as_many(omit)))
     return lint
 
 
-def pytest(coverage_packages, coverage_omit=[]):
-    def test(arg):
+def pytest(cov_pkgs, cov_omit=[]):
+    def test():
         'Run unit tests.'
 
-        arg('--pattern', '-p', help='Only run tests matching pattern.')
-        arg('--integration', '-i', action='store_true',
-            help='Also run integration tests (itest_*.py pattern).')
-        arg('--coverage', '-c', action='store_true',
-            help='Show coverage report after testing.')
+        cmd.arg('--pattern', '-p', help='Only run tests matching pattern.')
+        cmd.arg('--integration', '-i', action='store_true',
+                help='Also run integration tests (itest_*.py pattern).')
+        cmd.arg('--coverage', '-c', action='store_true',
+                help='Show coverage report after testing.')
         yield
 
-        def cmd(pattern, append=False):
+        def test_cmd(pattern, append=False):
             if args.coverage:
                 prefix = "coverage run %s--source='%s' --omit='%s'" % (
                     '-a ' if append else '',
-                    ','.join(as_many(coverage_packages)),
-                    ','.join(as_many(coverage_omit)))
+                    ','.join(as_many(cov_pkgs)),
+                    ','.join(as_many(cov_omit)))
             else:
                 prefix = 'python'
-            return "%s -m unittest discover -v -t . -s tests -p '%s'" % (
-                prefix, pattern)
+            return "%s -m unittest discover -v -t . -s tests -p %s || true" % (
+                prefix, sh_quote(pattern))
 
+        args = cmd.args
         pattern = args.pattern if args.pattern else 'test_*.py'
-        code = sh(cmd(pattern), exit=False)
+        code = sh(test_cmd(pattern))
         if args.integration and not args.pattern:
-            code += sh(cmd('itest_*.py', True), exit=False)
+            code += sh(test_cmd('itest_*.py', True), exit=False)
         if args.coverage:
             sh('coverage report')
         if code != 0:
@@ -207,19 +180,20 @@ def pytest(coverage_packages, coverage_omit=[]):
 
 
 def build(builder, modules):
-    def build(arg):
+    def build():
         'Build binary extensions.'
-        arg('--debug', '-d', action='store_true',
-            help='Compile with debug information.')
-        arg('--module', '-m', choices=modules,
-            help='Build only the specified module.')
+        cmd.arg('--debug', '-d', action='store_true',
+                help='Compile with debug information.')
+        cmd.arg('--module', '-m', choices=modules,
+                help='Build only the specified module.')
         yield
-        builder([args.module] if args.module else modules, args.debug)
+        builder([cmd.args.module] if cmd.args.module else modules,
+                cmd.args.debug)
     return build
 
 
 def clean(*paths):
-    def clean(args):
+    def clean():
         'Clean generated files.'
         yield
         for path in paths:  # noqa

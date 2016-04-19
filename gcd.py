@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 
-from gcd.make import command, pylint, pytest, run
+from gcd.make import cmd, pylint, pytest, make
 
-command(pylint())
+cmd.sub(pylint())
 
-command(pytest(coverage_packages='gcd'))
+cmd.sub(pytest(cov_pkgs='gcd'))
 
-run()
+cmd.run(make)
