@@ -1,5 +1,6 @@
 import os
 import time
+import calendar
 
 
 ms = millisecond = milliseconds = 1 / 1000
@@ -18,7 +19,7 @@ def parse(datetime):
                '%Y-%m-%d', '%H:%M:%S', '%H:%M:%S.%N')
     for format in formats:
         try:
-            return time.strptime(datetime, format)
+            return calendar.timegm(time.strptime(datetime, format))
         except ValueError:
             if format is formats[-1]:
                 raise

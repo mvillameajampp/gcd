@@ -62,8 +62,11 @@ class BundleMixin:
 
 class Bundle(BundleMixin):
 
-    def __init__(self, __dict__=None, **kwargs):
-        self.__dict__ = __dict__ or kwargs
+    def __init__(self, dict, *, **kwargs):
+        if dict:
+            self.__dict__ = dict
+        self.__dict__.update(kwargs)
+
 
 Config = Bundle
 
