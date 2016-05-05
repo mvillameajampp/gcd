@@ -4,9 +4,10 @@ import re
 import time
 
 from itertools import chain
-from gcd.utils import snippet
+from unittest import TestCase
 from psycopg2.pool import ThreadedConnectionPool
 
+from gcd.utils import snippet
 
 logger = logging.getLogger(__name__)
 
@@ -39,6 +40,8 @@ class PgConnectionPool:
 
 class Transaction:
 
+    _local = threading.local()
+
     def __init__(self, conn_or_pool):
         self._pool = self._conn = None
         if hasattr(conn_or_pool, 'cursor'):
@@ -47,10 +50,15 @@ class Transaction:
             self._pool = conn_or_pool
 
     def __enter__(self):
-        if self._pool:
-            self._conn = self._pool.acquire()
-        self._cursors = []
-        return self
+        active = getattr(Transaction._local, 'active', None)
+        if active:
+            return active
+        else:
+            Transaction._local.active = self
+            if self._pool:
+                self._conn = self._pool.acquire()
+            self._cursors = []
+            return self
 
     def cursor(self, *args, **kwargs):
         cursor = self._conn.cursor(*args, **kwargs)
@@ -58,6 +66,9 @@ class Transaction:
         return cursor
 
     def __exit__(self, type_, value, traceback):
+        active = Transaction._local.active
+        if active != self:
+            return
         try:
             for cursor in self._cursors:
                 try:
@@ -72,6 +83,7 @@ class Transaction:
                              exc_info=(type_, value, traceback))
                 self._conn.rollback()
         finally:
+            Transaction._local.active = None
             if self._pool:
                 self._pool.release(self._conn)
                 self._conn = None
@@ -84,6 +96,40 @@ class Store:
 
     def transaction(self):
         return Transaction(self._conn_or_pool)
+
+    def _execute(self, *args, **kwargs):
+        with self.transaction() as tx:
+            execute(tx, *args, **kwargs)
+
+
+class PgTestCase(TestCase):
+
+    host = 'localhost'
+    user = 'test'
+    db = 'test'
+    script = None
+    _cli_args = '-h %s -U %s %%s' % (host, user)
+
+    def setUp(self):
+        self._create_db(self.db, self.script)
+        self.conn = self._connect(self.db)
+
+    def tearDown(self):
+        self.conn.close()
+        self._drop_db(self.db)
+
+    def _create_db(self, db, script):
+        cli_args = self._cli_args % db
+        call('dropdb --if-exists %s' % cli_args, shell=True, stderr=DEVNULL)
+        call('createdb %s' % cli_args, shell=True)
+        if script:
+            call('psql -q -f %s %s' % (script, cli_args), shell=True)
+
+    def _drop_db(self, db):
+        call('dropdb %s' % self._cli_args % db, shell=True)
+
+    def _connect(self, db):
+        return psycopg2.connect(host=self.host, user=self.user, database=db)
 
 
 def _execute(tx_or_cursor, attr, sql, args, values=False):

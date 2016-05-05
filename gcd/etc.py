@@ -62,8 +62,8 @@ class BundleMixin:
 
 class Bundle(BundleMixin):
 
-    def __init__(self, dict, *, **kwargs):
-        if dict:
+    def __init__(self, dict=None, **kwargs):
+        if dict is not None:
             self.__dict__ = dict
         self.__dict__.update(kwargs)
 
