@@ -75,13 +75,13 @@ class Task:
 class Batcher(Task):
 
     def __init__(self, timer, handle, new_process=False, min_batch=1,
-                 queue=None, max_queue=10000):
+                 queue=None, hwm=10000):
         def callback():
             handle(dequeue(self._queue, min_batch))
         Task.__init__(self, timer, callback, new_process)
         if queue is None:
             queue_class = mp.Queue if new_process else Queue
-            queue = queue_class(max_queue)
+            queue = queue_class(hwm)
         self._queue = queue
 
     def add(self, obj):

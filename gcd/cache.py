@@ -55,9 +55,9 @@ class Cache:
 
 class AsynCache(Cache):
 
-    def __init__(self, tts=None, ttl=None, cache=None, max_queue=10000):
+    def __init__(self, tts=None, ttl=None, cache=None, hwm=10000):
         Cache.__init__(self, tts, ttl, cache)
-        self._queue = queue.Queue(max_queue)
+        self._queue = queue.Queue(hwm)
         Thread(target=self._process_queue, daemon=True).start()
 
     def _get(self, key):
