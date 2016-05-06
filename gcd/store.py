@@ -1,23 +1,26 @@
 import logging
+import threading
 import random
 import re
 import time
+import psycopg2
 
 from itertools import chain
 from unittest import TestCase
 from psycopg2.pool import ThreadedConnectionPool
 
-from gcd.utils import snippet
+from gcd.etc import snippet
+from gcd.nix import sh
 
 logger = logging.getLogger(__name__)
 
 
-def execute(tx_or_cursor, sql, args=(), *, values=False):
-    return _execute(tx_or_cursor, 'execute', sql, args, values)
+def execute(sql, args=(), *, cursor=None, values=False):
+    return _execute('execute', sql, args, cursor, values)
 
 
-def executemany(tx_or_cursor, sql, args):
-    return _execute(tx_or_cursor, 'executemany', sql, args)
+def executemany(sql, args, *, cursor=None):
+    return _execute('executemany', sql, args, cursor)
 
 
 class PgConnectionPool:
@@ -42,6 +45,9 @@ class Transaction:
 
     _local = threading.local()
 
+    def active():
+        return getattr(Transaction._local, 'active', None)
+
     def __init__(self, conn_or_pool):
         self._pool = self._conn = None
         if hasattr(conn_or_pool, 'cursor'):
@@ -50,7 +56,7 @@ class Transaction:
             self._pool = conn_or_pool
 
     def __enter__(self):
-        active = getattr(Transaction._local, 'active', None)
+        active = Transaction.active()
         if active:
             return active
         else:
@@ -66,7 +72,7 @@ class Transaction:
         return cursor
 
     def __exit__(self, type_, value, traceback):
-        active = Transaction._local.active
+        active = Transaction.active()
         if active != self:
             return
         try:
@@ -97,10 +103,6 @@ class Store:
     def transaction(self):
         return Transaction(self._conn_or_pool)
 
-    def _execute(self, *args, **kwargs):
-        with self.transaction() as tx:
-            execute(tx, *args, **kwargs)
-
 
 class PgTestCase(TestCase):
 
@@ -120,23 +122,21 @@ class PgTestCase(TestCase):
 
     def _create_db(self, db, script):
         cli_args = self._cli_args % db
-        call('dropdb --if-exists %s' % cli_args, shell=True, stderr=DEVNULL)
-        call('createdb %s' % cli_args, shell=True)
+        sh('dropdb --if-exists %s > /dev/null' % cli_args)
+        sh('createdb %s' % cli_args)
         if script:
-            call('psql -q -f %s %s' % (script, cli_args), shell=True)
+            sh('psql -q -f %s %s' % (script, cli_args))
 
     def _drop_db(self, db):
-        call('dropdb %s' % self._cli_args % db, shell=True)
+        sh('dropdb %s' % (self._cli_args % db))
 
     def _connect(self, db):
         return psycopg2.connect(host=self.host, user=self.user, database=db)
 
 
-def _execute(tx_or_cursor, attr, sql, args, values=False):
-    if isinstance(tx_or_cursor, Transaction):
-        cursor = tx_or_cursor.cursor()
-    else:
-        cursor = tx_or_cursor
+def _execute(attr, sql, args, cursor, values=False):
+    if cursor is None:
+        cursor = Transaction.active().cursor()
     fun = getattr(cursor, attr)
     if values:
         sql, args = _values(sql, args)
