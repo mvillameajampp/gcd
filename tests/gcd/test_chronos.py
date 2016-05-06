@@ -35,7 +35,7 @@ class TestTask(TestCase):
 
     def test_now(self):
         callback = Mock()
-        Task(Timer(10, start_now=True), callback).start()
+        Task(Timer(10, time.time()), callback).start()
         time.sleep(0.1)
         self.assertEqual(callback.call_count, 1)
 

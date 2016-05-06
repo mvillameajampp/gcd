@@ -35,12 +35,15 @@ def set_timezone(timezone=None):
 
 class Timer:
 
-    def __init__(self, period, start_now=False, align=False):
-        assert not (start_now and align)
+    def __init__(self, period, start_at=None, align=False):
+        assert not (start_at and align)
         self.period = period
-        now = time.time()
-        last_time = (int(now / period) * period) if align else now
-        self._next_time = last_time + (0 if start_now else period)
+        if start_at:
+            self._next_time = start_at
+        else:
+            now = time.time()
+            last_time = (int(now / period) * period) if align else now
+            self._next_time = last_time + period
 
     @property
     def is_time(self):
