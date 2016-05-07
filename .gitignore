@@ -1,6 +1,6 @@
 .coverage
 dist
-gcd.egg-info
+*.egg-info
 __pycache__
 *.pyc
 *.swp
