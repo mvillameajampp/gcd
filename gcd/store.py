@@ -109,11 +109,8 @@ class Store:
 
 class PgTestCase(TestCase):
 
-    host = 'localhost'
-    user = 'test'
     db = 'test'
     script = None
-    _cli_args = '-h %s -U %s %%s' % (host, user)
 
     def setUp(self):
         self._create_db(self.db, self.script)
@@ -125,16 +122,16 @@ class PgTestCase(TestCase):
 
     def _create_db(self, db, script):
         cli_args = self._cli_args % db
-        sh('dropdb --if-exists %s > /dev/null' % cli_args)
+        sh('dropdb --if-exists %s > /dev/null' % db)
         sh('createdb %s' % cli_args)
         if script:
-            sh('psql -q -f %s %s' % (script, cli_args))
+            sh('psql -q -f %s %s' % (script, db))
 
     def _drop_db(self, db):
-        sh('dropdb %s' % (self._cli_args % db))
+        sh('dropdb %s' % db)
 
     def _connect(self, db):
-        return psycopg2.connect(host=self.host, user=self.user, database=db)
+        return psycopg2.connect(dbname=db)
 
 
 def _execute(attr, sql, args, cursor, values=False):
