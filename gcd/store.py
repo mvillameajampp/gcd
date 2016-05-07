@@ -43,12 +43,15 @@ class PgConnectionPool:
 
 class Transaction:
 
+    pool = None
+
     _local = threading.local()
 
     def active():
         return getattr(Transaction._local, 'active', None)
 
-    def __init__(self, conn_or_pool):
+    def __init__(self, conn_or_pool=None):
+        conn_or_pool = conn_or_pool or Transaction.pool
         self._pool = self._conn = None
         if hasattr(conn_or_pool, 'cursor'):
             self._conn = conn_or_pool
@@ -97,7 +100,7 @@ class Transaction:
 
 class Store:
 
-    def __init__(self, conn_or_pool):
+    def __init__(self, conn_or_pool=None):
         self._conn_or_pool = conn_or_pool
 
     def transaction(self):
