@@ -121,11 +121,10 @@ class PgTestCase(TestCase):
         self._drop_db(self.db)
 
     def _create_db(self, db, script):
-        cli_args = self._cli_args % db
-        sh('dropdb --if-exists %s > /dev/null' % db)
-        sh('createdb %s' % cli_args)
+        sh('dropdb --if-exists %s &> /dev/null' % db)
+        sh('createdb %s' % db)
         if script:
-            sh('psql -q -f %s %s' % (script, db))
+            sh('psql -f %s %s &> /dev/null' % (script, db))
 
     def _drop_db(self, db):
         sh('dropdb %s' % db)
