@@ -11,15 +11,15 @@ logger = logging.getLogger(__name__)
 
 
 def on_fork(handler):
-    _on_fork_handlers.append(handler)
+    _fork_handlers.append(handler)
 
 
-def run_on_fork_handlers():  # Usually called indirectly by Process.run.
-    for handler in _on_fork_handlers:
+def run_fork_handlers():  # Usually called by Process.run.
+    for handler in _fork_handlers:
         handler()
 
 
-_on_fork_handlers = []
+_fork_handlers = []
 
 
 class Process(mp.Process):
@@ -33,7 +33,7 @@ class Process(mp.Process):
         return self
 
     def run(self, *args, **kwargs):
-        run_on_fork_handlers()
+        run_fork_handlers()
         super().run(*args, **kwargs)
 
 
