@@ -2,8 +2,11 @@ import time
 import json
 import logging
 import datetime
+import traceback
 
-from gcd.etc import Bundle
+from gcd.etc import Bundle, chunks
+from gcd.work import Batcher
+from gcd.store import Store, execute
 from gcd.chronos import hour, day, Timer
 
 
@@ -89,3 +92,33 @@ class JsonFormatter(logging.Formatter, json.JSONEncoder):
                 val = getattr(record, attr, None)
             log[attr] = val
         return json.dumps(log, cls=JsonDateTimeEncoder)
+
+
+class StoreHandler(logging.Handler):
+
+    def __init__(self, store):
+        logging.Handler.__init__(self)
+        self._batcher = Batcher(5, store.add).start()
+
+    def emit(self, record):
+        try:
+            self._batcher.add(self.format(record))
+        except:  # Avoid reentering or aborting: just a heads up in stderr.
+            traceback.print_exc()
+
+
+class PgLogStore(Store):
+
+    def __init__(self, *args, table='logs', column='log', **kwargs):
+        super().__init__(*args, **kwargs)
+        self._table = table
+        self._column = column
+
+    def add(self, logs):
+        for chunk in chunks(logs, 1000):
+            with self.transaction():
+                execute("""
+                        INSERT INTO %s (%s)
+                        SELECT cast(v.log AS jsonb) FROM (%%s) AS v (log)
+                        """ % (self._table, self._column),
+                        ((l,) for l in chunk), values=True)
