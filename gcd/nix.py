@@ -1,5 +1,6 @@
 import os
 import sys
+import signal
 import subprocess
 import fcntl
 import argparse
@@ -79,6 +80,11 @@ def cwd(path):
         yield
     finally:
         os.chdir(prev)
+
+
+def killable():
+    signal.signal(signal.SIGINT, lambda *args: os.killpg(0, signal.SIGKILL))
+    signal.signal(signal.SIGTERM, lambda *args: os.killpg(0, signal.SIGKILL))
 
 
 class Command:
