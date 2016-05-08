@@ -109,16 +109,10 @@ class StoreHandler(logging.Handler):
 
 class PgLogStore(Store):
 
-    def __init__(self, *args, table='logs', column='log', **kwargs):
-        super().__init__(*args, **kwargs)
-        self._table = table
-        self._column = column
-
     def add(self, logs):
         for chunk in chunks(logs, 1000):
             with self.transaction():
                 execute("""
-                        INSERT INTO %s (%s)
-                        SELECT cast(v.log AS jsonb) FROM (%%s) AS v (log)
-                        """ % (self._table, self._column),
-                        ((l,) for l in chunk), values=True)
+                        INSERT INTO logs (log)
+                        SELECT cast(v.log AS jsonb) FROM (%s) AS v (log)
+                        """, ((l,) for l in chunk), values=True)
