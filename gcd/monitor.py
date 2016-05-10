@@ -30,7 +30,7 @@ class MovingStatistics:
     def add(self, x):
         now = time.time()
         if self._timer.is_time:
-            self._history.append((now, self._bundle()))
+            self._history.append((now, Bundle(self.as_dict())))
             self._history = self._history[-self._keep:]
         mu = self._memory ** ((now - self._last) / day)
         self._last = now
@@ -43,7 +43,7 @@ class MovingStatistics:
 
     @property
     def history(self):
-        return self._history + [(time.time(), self._bundle())]
+        return self._history + [(time.time(), Bundle(self.as_dict))]
 
     @property
     def mean(self):
@@ -56,12 +56,12 @@ class MovingStatistics:
             sqmean = self.mean ** 2
             return ((self.sqsum - self.n * sqmean) / (self.n - 1)) ** 0.5
 
-    def __repr__(self):
-        return repr(self._bundle())
+    def as_dict(self):
+        return dict(n=self.n, mean=self.mean, stdev=self.stdev,
+                    min=self.min, max=self.max)
 
-    def _bundle(self):
-        return Bundle(n=self.n, mean=self.mean, stdev=self.stdev,
-                      min=self.min, max=self.max)
+    def __repr__(self):
+        return repr(self.as_dict())
 
 
 class SimpleEventLog(defaultdict, Task):
@@ -90,6 +90,8 @@ class SimpleEventLog(defaultdict, Task):
     def _log(self):
         log = self._log_base.copy()
         for keys, value in self.items():
+            if isinstance(value, MovingStatistics):
+                value = value.as_dict()
             sub_log = log
             for key in keys[:-1]:
                 sub_log = sub_log.setdefault(key, {})
