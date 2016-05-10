@@ -6,7 +6,7 @@ import textwrap
 from itertools import chain
 
 from gcd.etc import as_many
-from gcd.nix import sh as _sh, sh_quote, cmd, cwd, path, argv
+from gcd.nix import sh as _sh, sh_quote, cmd, path, argv
 
 
 def rule(fun):

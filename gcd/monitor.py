@@ -4,8 +4,11 @@ import logging
 import datetime
 import traceback
 
+from collections import defaultdict
+from contextlib import contextmanager
+
 from gcd.etc import Bundle, chunks
-from gcd.work import Batcher
+from gcd.work import Batcher, Task
 from gcd.store import Store, execute
 from gcd.chronos import hour, day, Timer
 
@@ -59,6 +62,40 @@ class MovingStatistics:
     def _bundle(self):
         return Bundle(n=self.n, mean=self.mean, stdev=self.stdev,
                       min=self.min, max=self.max)
+
+
+class SimpleEventLog(defaultdict, Task):
+
+    def __init__(self, log_period, log_fun, **log_base):
+        defaultdict.__init__(self, int)
+        Task.__init__(self, log_period, self._log)
+        self._log_fun = log_fun
+        self._log_base = log_base
+
+    def stat(self, *names_and_val):
+        names = names_and_val[:-1]
+        val = names_and_val[-1]
+        stats = self.get(names)
+        if stats is None:
+            stats = self[names] = MovingStatistics()
+        stats.add(val)
+
+    @contextmanager
+    def timeit(self, *names):
+        t0 = time.clock()
+        yield
+        t1 = time.clock()
+        self.stat(*names, t1 - t0)
+
+    def _log(self):
+        log = self._log_base.copy()
+        for keys, value in self.items():
+            sub_log = log
+            for key in keys[:-1]:
+                sub_log = sub_log.setdefault(key, {})
+            sub_log[keys[-1]] = value
+        self._log_fun(log)
+        self.clear()
 
 
 class JsonDateTimeEncoder(json.JSONEncoder):
