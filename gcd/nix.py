@@ -91,8 +91,8 @@ def kill_us(sig=signal.SIGKILL):
 
 
 def killable(killer=kill_us):
-    signal.signal(signal.SIGINT, killer)
-    signal.signal(signal.SIGTERM, killer)
+    signal.signal(signal.SIGINT, lambda *args: killer())
+    signal.signal(signal.SIGTERM, lambda *args: killer())
 
 
 class Command:
