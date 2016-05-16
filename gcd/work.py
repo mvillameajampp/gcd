@@ -53,7 +53,6 @@ class Task:
     def __init__(self, timer, callback, new_process=False):
         if type(timer) in (int, float):
             timer = Timer(timer)
-        self.ncall = 1
         worker_class = Process if new_process else Thread
         self.worker = worker_class(self._run, timer, callback)
 
@@ -66,7 +65,6 @@ class Task:
             timer.wait()
             try:
                 callback()
-                self.ncall += 1
             except Exception:
                 logger.exception('Error executing task %s',
                                  self.__class__.__name__)
