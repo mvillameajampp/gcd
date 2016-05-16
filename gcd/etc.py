@@ -1,7 +1,11 @@
 import operator
+import logging
 
 from itertools import islice, chain
 from functools import reduce
+
+
+logger = logging.getLogger(__name__)
 
 
 def sign(x):
@@ -49,6 +53,20 @@ def load_pyconfig(file_or_path, config=None):
     config.__dict__['Config'] = Config
     exec(as_file(file_or_path).read(), config.__dict__)
     return config
+
+
+def retry(errors, attempts=3):
+    def decorator(fun):
+        def wrapper(*args, **kwargs):
+            for i in range(attempts):
+                try:
+                    return fun(*args, **kwargs)
+                except errors:
+                    logger.exception('Retrying %s, %s/%s attempts' %
+                                     (fun.__name__, i + 1, attempts))
+        return wrapper
+    errors = as_many(errors, tuple)
+    return decorator
 
 
 class BundleMixin:
