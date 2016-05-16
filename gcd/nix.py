@@ -90,7 +90,7 @@ def kill_us(sig=signal.SIGKILL):
     os.kill(0, sig)
 
 
-def killable(killer=kill_us):
+def make_killable(killer=kill_us):
     signal.signal(signal.SIGINT, lambda *args: killer())
     signal.signal(signal.SIGTERM, lambda *args: killer())
 
