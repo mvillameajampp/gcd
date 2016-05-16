@@ -15,11 +15,11 @@ from gcd.nix import sh
 logger = logging.getLogger(__name__)
 
 
-def execute(sql, args=(), *, cursor=None, values=False):
+def execute(sql, args=(), cursor=None, values=False):
     return _execute('execute', sql, args, cursor, values)
 
 
-def executemany(sql, args, *, cursor=None):
+def executemany(sql, args, cursor=None):
     return _execute('executemany', sql, args, cursor)
 
 
@@ -113,24 +113,21 @@ class PgTestCase(TestCase):
     script = None
 
     def setUp(self):
-        self._create_db(self.db, self.script)
-        self.conn = self._connect(self.db)
+        sh('dropdb --if-exists %s &> /dev/null' % self.db)
+        sh('createdb %s' % self.db)
+        if self.script:
+            sh('psql -f %s %s &> /dev/null' % (self.script, self.db))
+        Transaction.pool = self._pool()
 
     def tearDown(self):
-        self.conn.close()
-        self._drop_db(self.db)
+        Transaction.pool = None
+        sh('dropdb %s' % self.db)
 
-    def _create_db(self, db, script):
-        sh('dropdb --if-exists %s &> /dev/null' % db)
-        sh('createdb %s' % db)
-        if script:
-            sh('psql -f %s %s &> /dev/null' % (script, db))
+    def _pool(self, *args, **kwargs):
+        return PgConnectionPool(*args, dbname=self.db, **kwargs)
 
-    def _drop_db(self, db):
-        sh('dropdb %s' % db)
-
-    def _connect(self, db=None):
-        return psycopg2.connect(dbname=db or self.db)
+    def _conn(self, *args, **kwargs):
+        return psycopg2.connect(*args, dbname=self.db, **kwargs)
 
 
 def _execute(attr, sql, args, cursor, values=False):
