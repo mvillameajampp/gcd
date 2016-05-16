@@ -1,6 +1,7 @@
 import os
 import time
-import calendar
+
+from datetime import datetime
 
 
 ms = millisecond = milliseconds = 1 / 1000
@@ -13,16 +14,23 @@ month = months = 4 * weeks
 year = years = 12 * months
 
 
-def parse(datetime):
-    formats = ('%Y-%m-%d %H:%M:%S.%N', '%Y-%m-%dZ%H:%M:%S.%N',
-               '%Y-%m-%d %H:%M:%S', '%Y-%m-%dZ%H:%M:%S',
-               '%Y-%m-%d', '%H:%M:%S', '%H:%M:%S.%N')
+def gm_parse(string, format=None):
+    if format:
+        formats = format,
+    else:
+        formats = ('%Y-%m-%d %H:%M:%S.%f', '%Y-%m-%d %H:%M:%S',
+                   '%Y-%m-%dZ%H:%M:%S.%f', '%Y-%m-%dZ%H:%M:%S',
+                   '%Y-%m-%d', '%H:%M:%S.%f', '%H:%M:%S')
     for format in formats:
         try:
-            return calendar.timegm(time.strptime(datetime, format))
+            return datetime.strptime(string, format).timestamp()
         except ValueError:
             if format is formats[-1]:
                 raise
+
+
+def gm_format(seconds, format='%Y-%m-%d %H:%M:%S.%f'):
+    return datetime.fromtimestamp(seconds).strftime(format)
 
 
 def set_timezone(timezone=None):
