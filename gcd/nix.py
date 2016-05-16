@@ -82,9 +82,17 @@ def cwd(path):
         os.chdir(prev)
 
 
-def killable():
-    signal.signal(signal.SIGINT, lambda *args: os.killpg(0, signal.SIGKILL))
-    signal.signal(signal.SIGTERM, lambda *args: os.killpg(0, signal.SIGKILL))
+def kill_me(sig=signal.SIGKILL):
+    os.kill(os.getpid(), sig)
+
+
+def kill_us(sig=signal.SIGKILL):
+    os.kill(0, sig)
+
+
+def killable(killer=kill_us):
+    signal.signal(signal.SIGINT, killer)
+    signal.signal(signal.SIGTERM, killer)
 
 
 class Command:
