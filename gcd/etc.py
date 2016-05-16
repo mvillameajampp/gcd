@@ -55,7 +55,7 @@ def load_pyconfig(file_or_path, config=None):
     return config
 
 
-def retry(errors, attempts=3):
+def retry_on(errors, attempts=3):
     def decorator(fun):
         def wrapper(*args, **kwargs):
             for i in range(attempts):
