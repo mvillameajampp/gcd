@@ -43,7 +43,7 @@ class MovingStatistics:
 
     @property
     def history(self):
-        return self._history + [(time.time(), Bundle(self.as_dict))]
+        return self._history + [(time.time(), Bundle(self.as_dict()))]
 
     @property
     def mean(self):
