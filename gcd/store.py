@@ -129,8 +129,8 @@ class PgTestCase(TestCase):
     def _drop_db(self, db):
         sh('dropdb %s' % db)
 
-    def _connect(self, db):
-        return psycopg2.connect(dbname=db)
+    def _connect(self, db=None):
+        return psycopg2.connect(dbname=db or self.db)
 
 
 def _execute(attr, sql, args, cursor, values=False):
