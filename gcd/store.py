@@ -117,17 +117,15 @@ class PgTestCase(TestCase):
         sh('createdb %s' % self.db)
         if self.script:
             sh('psql -f %s %s &> /dev/null' % (self.script, self.db))
-        Transaction.pool = self._pool()
 
     def tearDown(self):
-        Transaction.pool = None
         sh('dropdb %s' % self.db)
 
-    def _pool(self, *args, **kwargs):
-        return PgConnectionPool(*args, dbname=self.db, **kwargs)
-
-    def _conn(self, *args, **kwargs):
+    def connect(self, *args, **kwargs):
         return psycopg2.connect(*args, dbname=self.db, **kwargs)
+
+    def pool(self, *args, **kwargs):
+        return PgConnectionPool(*args, dbname=self.db, **kwargs)
 
 
 def _execute(attr, sql, args, cursor, values=False):
