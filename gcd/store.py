@@ -4,7 +4,6 @@ import random
 import re
 import time
 import json
-import psycopg2
 
 from itertools import chain
 from datetime import datetime

@@ -1,6 +1,6 @@
 from unittest import main
 
-from gcd.etc import Flattenable, Bundled
+from gcd.etc import Flattenable
 from gcd.store import PgTestCase, PgRecordStore
 
 
