@@ -3,13 +3,15 @@ import threading
 import random
 import re
 import time
+import json
 import psycopg2
 
 from itertools import chain
+from datetime import datetime
 from unittest import TestCase
 from psycopg2.pool import ThreadedConnectionPool
 
-from gcd.etc import snippet
+from gcd.etc import snippet, chunks, as_many
 from gcd.nix import sh
 
 logger = logging.getLogger(__name__)
@@ -39,6 +41,9 @@ class PgConnectionPool:
 
     def release(self, conn):
         self._pool.putconn(conn)
+
+    def close(self):
+        self._pool.closeall()
 
 
 class Transaction:
@@ -107,25 +112,67 @@ class Store:
         return Transaction(self._conn_or_pool)
 
 
+class PgRecordStore(Store):
+
+    def __init__(self, obj_class, conn=None, record='record'):
+        super().__init__(conn)
+        self._obj_class = obj_class
+        self._record = record
+
+    def add(self, batch):  # (time, obj)...
+        for chunk in chunks(batch, 1000):
+            with self.transaction():
+                chunk = ((datetime.fromtimestamp(t), json.dumps(o.flatten()))
+                         for t, o in chunk)
+                execute('INSERT INTO %s (time, data) %%s' % self._record,
+                        chunk, values=True)
+
+    def get(self, from_time=None, to_time=None, where='true'):
+        where = as_many(where, list)
+        cond, args = where[0], where[1:]
+        if from_time:
+            cond += ' AND time >= %s'
+            args.append(datetime.fromtimestamp(from_time))
+        if to_time:
+            cond += ' AND time < %s'
+            args.append(datetime.fromtimestamp(to_time))
+        unflatten = self._obj_class.unflatten
+        with self.transaction() as tx:
+            # Here I prefer a fast start plan over an overall faster one.
+            # (Maybe cursor_tuple_fraction would be a better way?)
+            execute('SET LOCAL enable_seqscan = false')
+            cursor = tx.cursor('record_cursor')
+            cursor.itersize = 1000
+            for t, o in execute(
+                    'SELECT time, data from %s WHERE %s ORDER BY time' %
+                    (self._record, cond), tuple(args), cursor):
+                yield t.timestamp(), unflatten(o)
+
+    def create(self):
+        with self.transaction():
+            execute("""
+                    DROP TABLE IF EXISTS %(record)s;
+                    CREATE TABLE %(record)s (
+                      time timestamp,
+                      data jsonb
+                    );
+                    CREATE INDEX %(record)s_time_index ON %(record)s(time);
+                    """ % {'record': self._record})
+        return self
+
+
 class PgTestCase(TestCase):
 
     db = 'test'
-    script = None
 
     def setUp(self):
         sh('dropdb --if-exists %s &> /dev/null' % self.db)
         sh('createdb %s' % self.db)
-        if self.script:
-            sh('psql -f %s %s &> /dev/null' % (self.script, self.db))
+        self.pool = PgConnectionPool(dbname=self.db)
 
     def tearDown(self):
+        self.pool.close()
         sh('dropdb %s' % self.db)
-
-    def connect(self, *args, **kwargs):
-        return psycopg2.connect(*args, dbname=self.db, **kwargs)
-
-    def pool(self, *args, **kwargs):
-        return PgConnectionPool(*args, dbname=self.db, **kwargs)
 
 
 def _execute(attr, sql, args, cursor, values=False):
