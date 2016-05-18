@@ -41,6 +41,13 @@ def set_timezone(timezone=None):
         del os.environ['TZ']
 
 
+def as_timer(period_or_timer):
+    if isinstance(period_or_timer, Timer):
+        return period_or_timer
+    else:
+        return Timer(period_or_timer)
+
+
 class Timer:
 
     def __init__(self, period, start_at=None, align=False):

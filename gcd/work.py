@@ -4,7 +4,7 @@ import threading as mt
 
 from queue import Empty, Queue
 
-from gcd.chronos import Timer
+from gcd.chronos import as_timer
 
 
 logger = logging.getLogger(__name__)
@@ -50,9 +50,8 @@ class Thread(mt.Thread):
 
 class Task:
 
-    def __init__(self, timer, callback, new_process=False):
-        if type(timer) in (int, float):
-            timer = Timer(timer)
+    def __init__(self, period_or_timer, callback, new_process=False):
+        timer = as_timer(period_or_timer)
         worker_class = Process if new_process else Thread
         self.worker = worker_class(self._run, timer, callback)
 
