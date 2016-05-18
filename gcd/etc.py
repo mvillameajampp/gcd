@@ -3,6 +3,7 @@ import logging
 
 from itertools import islice, chain
 from functools import reduce
+from contextlib import contextmanager
 
 
 logger = logging.getLogger(__name__)
@@ -41,17 +42,24 @@ def as_many(obj, as_type=None):
     return obj
 
 
+@contextmanager
 def as_file(file_or_path, *args, **kwargs):
     if type(file_or_path) is str:
-        return open(file_or_path, *args, **kwargs)
+        file = open(file_or_path, *args, **kwargs)
     else:
-        return file_or_path
+        file = file_or_path
+    try:
+        yield file
+    finally:
+        if type(file_or_path) is str:
+            file.close()
 
 
 def load_pyconfig(file_or_path, config=None):
     config = config or Config()
     config.__dict__['Config'] = Config
-    exec(as_file(file_or_path).read(), config.__dict__)
+    with as_file(file_or_path) as cfg_file:
+        exec(cfg_file.read(), config.__dict__)
     return config
 
 
