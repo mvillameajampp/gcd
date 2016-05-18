@@ -104,14 +104,15 @@ class Command:
     def arg(self, *args, **kwargs):
         self._cur.add_argument(*args, **kwargs)
 
-    def sub(self, fun):
+    def sub(self, fun, name=None, doc=None):
         if self._sub is None:
             self._sub = self._top.add_subparsers(dest='cmd')
             self._sub.required = True
         try:
-            self._cur = self._sub.add_parser(fun.__name__, help=fun.__doc__)
+            self._cur = self._sub.add_parser(
+                name or fun.__name__, help=doc or fun.__doc__)
             gen = fun()
-            next(gen)
+            next(gen)  # Run first part of sub cmd.
             self._cur.set_defaults(_gen=gen)
         finally:
             self._cur = self._top
@@ -122,10 +123,16 @@ class Command:
             self._args = self._top.parse_args()
         return self._args
 
-    def run(self, fun):
-        self._top.description = fun.__doc__
-        fun()
-        if '_gen' in self.args:
+    def run(self, fun, doc=None):
+        self._top.description = doc or fun.__doc__
+        gen = fun()
+        if gen is not None:  # Allow for sub cmds to be also top cmds.
+            next(gen)
+            try:
+                next(gen)
+            except StopIteration:
+                pass
+        if '_gen' in self.args:  # Run second part of sub cmd.
             try:
                 next(self._args._gen)
             except StopIteration:
