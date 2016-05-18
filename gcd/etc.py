@@ -78,7 +78,7 @@ class BundleMixin:
         return repr(self.__dict__)
 
 
-class Bundle(BundleMixin):
+class Bundle(Bundled):
 
     def __init__(self, dict=None, **kwargs):
         if dict is not None:
@@ -87,6 +87,33 @@ class Bundle(BundleMixin):
 
 
 Config = Bundle
+
+
+class Flattenable:
+
+    _attrs = {}
+    _version = 0
+    _na = '__'
+
+    @classmethod
+    def unflatten(cls, flat):
+        obj = cls.__new__(cls)
+        obj.__setstate__(flat)
+        return obj
+
+    def __getstate__(self):
+        state = [self._version]
+        state.extend(getattr(self, attr, self._na)
+                     for attr in self._attrs[self._version])
+        return state
+
+    flatten = __getstate__
+
+    def __setstate__(self, state):
+        self._version = state[0]
+        for attr, val in zip(self._attrs[self._version], state[1:]):
+            if val != self._na:
+                setattr(self, attr, val)
 
 
 class PositionalAttribute:
