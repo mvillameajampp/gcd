@@ -5,7 +5,7 @@ import textwrap
 
 from itertools import chain
 
-from gcd.etc import as_many
+from gcd.etc import as_many, template
 from gcd.nix import sh as _sh, sh_quote, cmd, path, argv
 
 
@@ -76,21 +76,10 @@ def cmdclass(build=None, clean=None):
 
 
 @rule
-def preprocess(pre, post, context={}, markers=['$', '$', '@', '`', '`']):
-    yield pre, post
-    import jinja2
-    environment = jinja2.Environment(
-        block_start_string=markers[0],
-        block_end_string=markers[1],
-        line_statement_prefix=markers[2],
-        variable_start_string=markers[3],
-        variable_end_string=markers[4],
-        trim_blocks=True,
-        lstrip_blocks=True)
-    with open(pre) as pre_file:
-        template = environment.from_string(pre_file.read())
-    with open(post, 'w') as post_file:
-        post_file.write(template.render(context))
+def render(tmpl, output, context={}, **kwargs):
+    yield tmpl, output
+    with open(output, 'w') as out_file:
+        out_file.write(template(tmpl, **kwargs).render(context))
 
 
 @rule
@@ -135,6 +124,19 @@ def cythonize(source, debug=False, annotate=False):
 # ------------------------------ Commands -------------------------------------
 
 
+def gen(tmpl, **kwargs):
+    def gen():
+        for name, default in kwargs.items():
+            cmd.arg('--' + name, default=default)
+        cmd.arg('--output', '-o', default='/dev/stdout')
+        yield
+        context = {n: getattr(cmd.args, n) for n in kwargs}
+        render(tmpl, cmd.args.output, context)
+    gen.__name__ = 'gen' + path.splitext(path.basename(tmpl))[0]
+    gen.__doc__ = 'Generate output from %s jinja2 template.' % tmpl
+    return gen
+
+
 def pylint(omit=[]):
     def lint():
         'Run flake8 linter'
@@ -155,7 +157,7 @@ def pytest(cov_pkgs, cov_omit=[]):
                 help='Show coverage report after testing.')
         yield
 
-        def test_cmd(pattern, append=False):
+        def sh_test(pattern, append=False):
             if args.coverage:
                 prefix = "coverage run %s--source='%s' --omit='%s'" % (
                     '-a ' if append else '',
@@ -163,14 +165,14 @@ def pytest(cov_pkgs, cov_omit=[]):
                     ','.join(as_many(cov_omit)))
             else:
                 prefix = 'python'
-            return "%s -m unittest discover -v -t . -s tests -p %s || true" % (
-                prefix, sh_quote(pattern))
+            sh("%s -m unittest discover -v -t . -s tests -p %s || true" %
+               (prefix, sh_quote(pattern)))
 
         args = cmd.args
         pattern = args.pattern if args.pattern else 'test_*.py'
-        code = sh(test_cmd(pattern))
+        code = sh_test(pattern)
         if args.integration and not args.pattern:
-            code += sh(test_cmd('itest_*.py', True), exit=False)
+            code = code or sh_test('itest_*.py', True)
         if args.coverage:
             sh('coverage report')
         if code != 0:

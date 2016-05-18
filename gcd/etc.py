@@ -77,7 +77,21 @@ def retry_on(errors, attempts=3):
     return decorator
 
 
-class BundleMixin:
+def template(file_or_path_or_str, **kwargs):
+    import jinja2
+    environment = jinja2.Environment(
+        line_statement_prefix=kwargs.pop('line_statement_prefix', '%'),
+        trim_blocks=kwargs.pop('trim_blocks', True),
+        lstrip_blocks=kwargs.pop('lstrip_blocks', True),
+        **kwargs)
+    try:
+        with as_file(file_or_path_or_str) as tmpl_file:
+            return environment.from_string(tmpl_file.read())
+    except FileNotFoundError:
+        return environment.from_string(file_or_path_or_str)
+
+
+class Bundled:
 
     def __eq__(self, other):
         return self.__dict__ == other.__dict__
