@@ -148,7 +148,7 @@ class StoreHandler(logging.Handler):
 
 class PgLogStore(Store):
 
-    def __init__(self, conn_or_pool, table='logs'):
+    def __init__(self, conn_or_pool=None, table='logs'):
         super().__init__(conn_or_pool)
         self._table = table
 
