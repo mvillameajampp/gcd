@@ -2,7 +2,7 @@ import operator
 import logging
 
 from itertools import islice, chain
-from functools import reduce
+from functools import reduce, lru_cache
 from contextlib import contextmanager
 
 
@@ -89,6 +89,7 @@ def retry_on(errors, attempts=3):
     return decorator
 
 
+@lru_cache(maxsize=100)
 def template(file_or_path_or_str, **kwargs):
     import jinja2
     environment = jinja2.Environment(
