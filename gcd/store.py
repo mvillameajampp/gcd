@@ -5,6 +5,7 @@ import re
 import time
 import json
 import pickle
+import psycopg2
 
 from itertools import chain
 from datetime import datetime
@@ -13,6 +14,7 @@ from operator import attrgetter
 from psycopg2.pool import ThreadedConnectionPool
 
 from gcd.etc import identity, attrsetter, snippet, chunks, as_many
+from gcd.work import Batcher
 from gcd.nix import sh
 
 logger = logging.getLogger(__name__)
@@ -153,11 +155,15 @@ class PgTestCase(TestCase):
     def setUp(self):
         sh('dropdb --if-exists %s &> /dev/null' % self.db)
         sh('createdb %s' % self.db)
-        self.pool = PgConnectionPool(dbname=self.db)
 
     def tearDown(self):
-        self.pool.close()
         sh('dropdb %s' % self.db)
+
+    def connect(self, **kwargs):
+        return psycopg2.connect(dbname=self.db, **kwargs)
+
+    def pool(self, **kwargs):
+        return PgConnectionPool(dbname=self.db, **kwargs)
 
 
 class PgRecordStore(Store):
@@ -166,6 +172,12 @@ class PgRecordStore(Store):
         super().__init__(conn)
         self._flattener = flattener
         self._table = table
+
+    def batcher(self, timer, **kwargs):
+        class RecordBatcher(Batcher):
+            def add(self, obj):
+                super().add((time.time(), obj))
+        return RecordBatcher(timer, self.add, **kwargs)
 
     def add(self, batch):  # (time, obj)...
         flatten = self._flattener.flatten

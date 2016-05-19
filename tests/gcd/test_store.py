@@ -22,7 +22,7 @@ class TestPgRecordStore(PgTestCase):
             return self.id == other.id
 
     def test(self):
-        store = PgRecordStore(PgFlattener(self.Data), self.pool).create()
+        store = PgRecordStore(PgFlattener(self.Data), self.connect()).create()
 
         row1, row2, row3 = ((i, self.Data(i)) for i in range(1, 4))
         store.add([row1, row2])
