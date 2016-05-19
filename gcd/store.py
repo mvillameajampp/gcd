@@ -186,11 +186,11 @@ class PgRecordStore(Store):
             cond += ' AND time < %s'
             args.append(datetime.fromtimestamp(to_time))
         unflatten = self._flattener.unflatten
-        with self.transaction() as tx:
+        with self.transaction() as trans:
             # Here I prefer a fast start plan over an overall faster one.
             # (Maybe cursor_tuple_fraction would be a better way?)
             execute('SET LOCAL enable_seqscan = false')
-            cursor = tx.cursor('record_cursor')
+            cursor = trans.cursor('record_cursor')
             cursor.itersize = 1000
             for t, o in execute(
                     'SELECT time, data from %s WHERE %s ORDER BY time' %
