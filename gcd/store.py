@@ -115,7 +115,7 @@ class PgConnectionPool:
 
 class PgFlattener:
 
-    def __init__(self, col_type='jsonb', obj_type=None):
+    def __init__(self, obj_type=None, col_type='jsonb'):
         self.col_type = col_type
         self._state_to_col, self._col_to_state = {
             'json': (json.dumps, identity),
