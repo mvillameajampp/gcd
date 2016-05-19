@@ -8,13 +8,11 @@ import pickle
 import psycopg2
 
 from itertools import chain
-from datetime import datetime
 from unittest import TestCase
 from operator import attrgetter
 from psycopg2.pool import ThreadedConnectionPool
 
-from gcd.etc import identity, attrsetter, snippet, chunks, as_many
-from gcd.work import Batcher
+from gcd.etc import identity, attrsetter, snippet
 from gcd.nix import sh
 
 logger = logging.getLogger(__name__)
@@ -164,61 +162,6 @@ class PgTestCase(TestCase):
 
     def pool(self, **kwargs):
         return PgConnectionPool(dbname=self.db, **kwargs)
-
-
-class PgRecordStore(Store):
-
-    def __init__(self, flattener, conn_or_pool=None, table='record'):
-        super().__init__(conn_or_pool)
-        self._flattener = flattener
-        self._table = table
-
-    def batcher(self, timer, **kwargs):
-        class RecordBatcher(Batcher):
-            def add(self, obj):
-                super().add((time.time(), obj))
-        return RecordBatcher(timer, self.add, **kwargs)
-
-    def add(self, batch):  # (time, obj)...
-        flatten = self._flattener.flatten
-        for chunk in chunks(batch, 1000):
-            with self.transaction():
-                chunk = ((datetime.fromtimestamp(t), flatten(o))
-                         for t, o in chunk)
-                execute('INSERT INTO %s (time, data) %%s' % self._table,
-                        chunk, values=True)
-
-    def get(self, from_time=None, to_time=None, where='true'):
-        where = as_many(where, list)
-        cond, args = where[0], where[1:]
-        if from_time:
-            cond += ' AND time >= %s'
-            args.append(datetime.fromtimestamp(from_time))
-        if to_time:
-            cond += ' AND time < %s'
-            args.append(datetime.fromtimestamp(to_time))
-        unflatten = self._flattener.unflatten
-        with self.transaction() as trans:
-            # Here I prefer a fast start plan over an overall faster one.
-            # (Maybe cursor_tuple_fraction would be a better way?)
-            execute('SET LOCAL enable_seqscan = false')
-            cursor = trans.cursor('record_cursor')
-            cursor.itersize = 1000
-            for t, o in execute(
-                    'SELECT time, data from %s WHERE %s ORDER BY time' %
-                    (self._table, cond), tuple(args), cursor):
-                yield t.timestamp(), unflatten(o)
-
-    def create(self, drop=False):
-        with self.transaction():
-            execute("""
-                    %(no_drop)sDROP TABLE IF EXISTS %(table)s;
-                    CREATE TABLE %(table)s (time timestamp, data %(type)s);
-                    CREATE INDEX %(table)s_time_index ON %(table)s(time);
-                    """ % dict(table=self._table,
-                               type=self._flattener.col_type,
-                               no_drop='' if drop else '--'))
-        return self
 
 
 def _execute(attr, sql, args, cursor, values=False):
