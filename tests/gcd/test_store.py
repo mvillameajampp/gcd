@@ -1,7 +1,7 @@
 from unittest import main
 
 from gcd.etc import Flattenable
-from gcd.store import PgTestCase, PgRecordStore
+from gcd.store import PgTestCase, PgRecordStore, PgFlattener
 
 
 class TestPgRecordStore(PgTestCase):
@@ -17,7 +17,8 @@ class TestPgRecordStore(PgTestCase):
             return self.id == other.id
 
     def test(self):
-        store = PgRecordStore(self.Data, self.pool).create()
+        flattener = PgFlattener('jsonb', self.Data)
+        store = PgRecordStore(flattener, self.pool).create()
 
         row1, row2, row3 = ((i, self.Data(i)) for i in range(1, 4))
         store.add([row1, row2])

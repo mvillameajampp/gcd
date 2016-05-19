@@ -4,13 +4,15 @@ import random
 import re
 import time
 import json
+import pickle
 
 from itertools import chain
 from datetime import datetime
 from unittest import TestCase
+from operator import attrgetter
 from psycopg2.pool import ThreadedConnectionPool
 
-from gcd.etc import snippet, chunks, as_many
+from gcd.etc import identity, attrsetter, snippet, chunks, as_many
 from gcd.nix import sh
 
 logger = logging.getLogger(__name__)
@@ -22,27 +24,6 @@ def execute(sql, args=(), cursor=None, values=False):
 
 def executemany(sql, args, cursor=None):
     return _execute('executemany', sql, args, cursor)
-
-
-class PgConnectionPool:
-
-    def __init__(self, *args, min_conns=1, keep_conns=10, max_conns=10,
-                 **kwargs):
-        self._pool = ThreadedConnectionPool(
-            min_conns, max_conns, *args, **kwargs)
-        self._keep_conns = keep_conns
-
-    def acquire(self):
-        pool = self._pool
-        conn = pool.getconn()
-        pool.minconn = min(self._keep_conns, len(pool._used))
-        return conn
-
-    def release(self, conn):
-        self._pool.putconn(conn)
-
-    def close(self):
-        self._pool.closeall()
 
 
 class Transaction:
@@ -111,53 +92,58 @@ class Store:
         return Transaction(self._conn_or_pool)
 
 
-class PgRecordStore(Store):
+class PgConnectionPool:
 
-    def __init__(self, obj_class, conn=None, record='record'):
-        super().__init__(conn)
-        self._obj_class = obj_class
-        self._record = record
+    def __init__(self, *args, min_conns=1, keep_conns=10, max_conns=10,
+                 **kwargs):
+        self._pool = ThreadedConnectionPool(
+            min_conns, max_conns, *args, **kwargs)
+        self._keep_conns = keep_conns
 
-    def add(self, batch):  # (time, obj)...
-        for chunk in chunks(batch, 1000):
-            with self.transaction():
-                chunk = ((datetime.fromtimestamp(t), json.dumps(o.flatten()))
-                         for t, o in chunk)
-                execute('INSERT INTO %s (time, data) %%s' % self._record,
-                        chunk, values=True)
+    def acquire(self):
+        pool = self._pool
+        conn = pool.getconn()
+        pool.minconn = min(self._keep_conns, len(pool._used))
+        return conn
 
-    def get(self, from_time=None, to_time=None, where='true'):
-        where = as_many(where, list)
-        cond, args = where[0], where[1:]
-        if from_time:
-            cond += ' AND time >= %s'
-            args.append(datetime.fromtimestamp(from_time))
-        if to_time:
-            cond += ' AND time < %s'
-            args.append(datetime.fromtimestamp(to_time))
-        unflatten = self._obj_class.unflatten
-        with self.transaction() as tx:
-            # Here I prefer a fast start plan over an overall faster one.
-            # (Maybe cursor_tuple_fraction would be a better way?)
-            execute('SET LOCAL enable_seqscan = false')
-            cursor = tx.cursor('record_cursor')
-            cursor.itersize = 1000
-            for t, o in execute(
-                    'SELECT time, data from %s WHERE %s ORDER BY time' %
-                    (self._record, cond), tuple(args), cursor):
-                yield t.timestamp(), unflatten(o)
+    def release(self, conn):
+        self._pool.putconn(conn)
 
-    def create(self):
-        with self.transaction():
-            execute("""
-                    DROP TABLE IF EXISTS %(record)s;
-                    CREATE TABLE %(record)s (
-                      time timestamp,
-                      data jsonb
-                    );
-                    CREATE INDEX %(record)s_time_index ON %(record)s(time);
-                    """ % {'record': self._record})
-        return self
+    def close(self):
+        self._pool.closeall()
+
+
+class PgFlattener:
+
+    def __init__(self, col_type='jsonb', obj_type=None):
+        self.col_type = col_type
+        self._state_to_col, self._col_to_state = {
+            'json': (json.dumps, identity),
+            'jsonb': (json.dumps, identity),
+            'bytea': (pickle.dumps, pickle.loads)
+        }[col_type]
+
+        self.obj_type = obj_type
+        if obj_type is None:
+            self._obj_to_state = identity
+        elif hasattr(obj_type, '__getstate__'):
+            self._obj_to_state = obj_type.__getstate__
+            self._set_state = obj_type.__setstate__
+        else:
+            self._obj_to_state = attrgetter('__dict__')
+            self._set_state = attrsetter('__dict__')
+
+    def flatten(self, obj):
+        return self._state_to_col(self._obj_to_state(obj))
+
+    def unflatten(self, col):
+        state = self._col_to_state(col)
+        if self.obj_type:
+            obj = self.obj_type.__new__(self.obj_type)
+            self._set_state(obj, state)
+            return obj
+        else:
+            return state
 
 
 class PgTestCase(TestCase):
@@ -172,6 +158,54 @@ class PgTestCase(TestCase):
     def tearDown(self):
         self.pool.close()
         sh('dropdb %s' % self.db)
+
+
+class PgRecordStore(Store):
+
+    def __init__(self, flattener, conn=None, table='record'):
+        super().__init__(conn)
+        self._flattener = flattener
+        self._table = table
+
+    def add(self, batch):  # (time, obj)...
+        flatten = self._flattener.flatten
+        for chunk in chunks(batch, 1000):
+            with self.transaction():
+                chunk = ((datetime.fromtimestamp(t), flatten(o))
+                         for t, o in chunk)
+                execute('INSERT INTO %s (time, data) %%s' % self._table,
+                        chunk, values=True)
+
+    def get(self, from_time=None, to_time=None, where='true'):
+        where = as_many(where, list)
+        cond, args = where[0], where[1:]
+        if from_time:
+            cond += ' AND time >= %s'
+            args.append(datetime.fromtimestamp(from_time))
+        if to_time:
+            cond += ' AND time < %s'
+            args.append(datetime.fromtimestamp(to_time))
+        unflatten = self._flattener.unflatten
+        with self.transaction() as tx:
+            # Here I prefer a fast start plan over an overall faster one.
+            # (Maybe cursor_tuple_fraction would be a better way?)
+            execute('SET LOCAL enable_seqscan = false')
+            cursor = tx.cursor('record_cursor')
+            cursor.itersize = 1000
+            for t, o in execute(
+                    'SELECT time, data from %s WHERE %s ORDER BY time' %
+                    (self._table, cond), tuple(args), cursor):
+                yield t.timestamp(), unflatten(o)
+
+    def create(self):
+        with self.transaction():
+            execute("""
+                    DROP TABLE IF EXISTS %(table)s;
+                    CREATE TABLE %(table)s (time timestamp, data %(type)s);
+                    CREATE INDEX %(table)s_time_index ON %(table)s(time);
+                    """ % {'table': self._table,
+                           'type': self._flattener.col_type})
+        return self
 
 
 def _execute(attr, sql, args, cursor, values=False):
