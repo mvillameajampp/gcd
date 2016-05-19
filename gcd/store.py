@@ -168,8 +168,8 @@ class PgTestCase(TestCase):
 
 class PgRecordStore(Store):
 
-    def __init__(self, flattener, conn=None, table='record'):
-        super().__init__(conn)
+    def __init__(self, flattener, conn_or_pool=None, table='record'):
+        super().__init__(conn_or_pool)
         self._flattener = flattener
         self._table = table
 
@@ -209,14 +209,15 @@ class PgRecordStore(Store):
                     (self._table, cond), tuple(args), cursor):
                 yield t.timestamp(), unflatten(o)
 
-    def create(self):
+    def create(self, drop=False):
         with self.transaction():
             execute("""
-                    DROP TABLE IF EXISTS %(table)s;
+                    %(no_drop)sDROP TABLE IF EXISTS %(table)s;
                     CREATE TABLE %(table)s (time timestamp, data %(type)s);
                     CREATE INDEX %(table)s_time_index ON %(table)s(time);
-                    """ % {'table': self._table,
-                           'type': self._flattener.col_type})
+                    """ % dict(table=self._table,
+                               type=self._flattener.col_type,
+                               no_drop='' if drop else '--'))
         return self
 
 

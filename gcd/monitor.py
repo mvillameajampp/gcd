@@ -148,10 +148,22 @@ class StoreHandler(logging.Handler):
 
 class PgLogStore(Store):
 
+    def __init__(self, conn_or_pool, table='logs'):
+        super().__init__(conn_or_pool)
+        self._table = table
+
     def add(self, logs):
         for chunk in chunks(logs, 1000):
             with self.transaction():
                 execute("""
-                        INSERT INTO logs (log)
-                        SELECT cast(v.log AS jsonb) FROM (%s) AS v (log)
-                        """, ((l,) for l in chunk), values=True)
+                        INSERT INTO %s (log)
+                        SELECT cast(v.log AS jsonb) FROM (%%s) AS v (log)
+                        """ % self._table, ((l,) for l in chunk), values=True)
+
+    def create(self, drop=False):
+        with self.transaction():
+            execute("""
+                    %sDROP TABLE IF EXISTS %s;
+                    CREATE TABLE %s (log jsonb);
+                    """ % ('' if drop else '--', self._table, self._table))
+        return self
