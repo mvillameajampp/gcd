@@ -9,6 +9,18 @@ from contextlib import contextmanager
 logger = logging.getLogger(__name__)
 
 
+def identity(x):
+    return x
+
+
+def nop(*args, **kwargs):
+    pass
+
+
+def attrsetter(name):
+    return lambda obj, value: setattr(obj, name, value)
+
+
 def sign(x):
     return -1 if x < 0 else 1
 
