@@ -50,20 +50,21 @@ class Thread(mt.Thread):
 
 class Task:
 
-    def __init__(self, period_or_timer, callback, new_process=False):
+    def __init__(self, period_or_timer, callback, *args, new_process=False,
+                 **kwargs):
         timer = as_timer(period_or_timer)
         worker_class = Process if new_process else Thread
-        self.worker = worker_class(self._run, timer, callback)
+        self.worker = worker_class(self._run, timer, callback, args, kwargs)
 
     def start(self):
         self.worker.start()
         return self
 
-    def _run(self, timer, callback):
+    def _run(self, timer, callback, args, kwargs):
         while True:
             timer.wait()
             try:
-                callback()
+                callback(*args, **kwargs)
             except Exception:
                 logger.exception('Error executing task %s',
                                  self.__class__.__name__)
