@@ -7,43 +7,33 @@ import traceback
 from collections import defaultdict
 from contextlib import contextmanager
 
-from gcd.etc import Bundle, chunks
+from gcd.etc import chunks
 from gcd.work import Batcher, Task
 from gcd.store import Store, execute
-from gcd.chronos import hour, day, Timer
+from gcd.chronos import day
 
 
 class MovingStatistics:
 
-    def __init__(self, memory=1, period=hour, keep=2*7*24):
+    def __init__(self, memory=1, period=day):
+        self.n = 0
         self.sum = 0
         self.sqsum = 0
         self.min = float('inf')
         self.max = -float('inf')
-        self.n = 0
-        self._memory = memory
-        self._timer = Timer(period)
-        self._keep = keep - 1
-        self._history = []
+        self._memory = memory ** (1 / period)
         self._last = time.time()
 
     def add(self, x):
         now = time.time()
-        if self._timer.is_time:
-            self._history.append((now, Bundle(self.as_dict())))
-            self._history = self._history[-self._keep:]
-        mu = self._memory ** ((now - self._last) / day)
+        mu = self._memory ** (now - self._last)
         self._last = now
+        self.n += mu * 1
         self.sum = mu * self.sum + x
         self.sqsum = mu * self.sqsum + x*x
         self.min = min(mu * self.min, x)
         self.max = max(mu * self.max, x)
-        self.n += mu * 1
         return self
-
-    @property
-    def history(self):
-        return self._history + [(time.time(), Bundle(self.as_dict()))]
 
     @property
     def mean(self):
@@ -72,20 +62,20 @@ class SimpleEventLog(defaultdict, Task):
         self._log_fun = log_fun
         self._log_base = log_base
 
-    def stat(self, *names_and_val):
+    def stat(self, *names_and_val, **kwargs):
         names = names_and_val[:-1]
         val = names_and_val[-1]
         stats = self.get(names)
         if stats is None:
-            stats = self[names] = MovingStatistics()
+            stats = self[names] = MovingStatistics(**kwargs)
         stats.add(val)
 
     @contextmanager
-    def timeit(self, *names):
+    def timeit(self, *names, **kwargs):
         t0 = time.clock()
         yield
         t1 = time.clock()
-        self.stat(*names, t1 - t0)
+        self.stat(*names, t1 - t0, **kwargs)
 
     def _log(self):
         log = self._log_base.copy()

@@ -1,7 +1,6 @@
 import logging
 import json
 import io
-import time
 import statistics
 
 from unittest import TestCase, main
@@ -24,30 +23,10 @@ class TestMovingStatistics(TestCase):
         self.assertEqual(stats.max, max(xs))
         self.assertEqual(stats.n, len(xs))
 
-    def test_history(self):
-        xs = 1, 2, 3
-        stats = MovingStatistics(period=0.095, keep=2)
-
-        stats.add(xs[0])
-        self.assertEqual(len(stats.history), 1)
-        self.assertEqual(stats.history[0][1].mean, statistics.mean(xs[:1]))
-
-        time.sleep(0.1)
-        stats.add(xs[1])
-        self.assertEqual(len(stats.history), 2)
-        self.assertEqual(stats.history[0][1].mean, statistics.mean(xs[:1]))
-        self.assertEqual(stats.history[1][1].mean, statistics.mean(xs[:2]))
-
-        time.sleep(0.1)
-        stats.add(xs[2])
-        self.assertEqual(len(stats.history), 2)
-        self.assertEqual(stats.history[0][1].mean, statistics.mean(xs[:2]))
-        self.assertEqual(stats.history[1][1].mean, statistics.mean(xs[:3]))
-
     @patch('time.time')
     def test_memory(self, time_):
         time_.return_value = 0
-        stats = MovingStatistics(period=0.095, memory=0.5)
+        stats = MovingStatistics(memory=0.5)
         stats.add(2)
         time_.return_value = day
         stats.add(3)
