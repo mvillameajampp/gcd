@@ -72,18 +72,34 @@ class Task:
 
 class Batcher(Task):
 
-    def __init__(self, period, handle, new_process=False, min_batch=1,
-                 queue=None, hwm=10000):
+    def __init__(self, period, handle, queue=None, hwm=10000, min_batch=1,
+                 new_process=False):
         def callback():
             handle(dequeue(self._queue, min_batch))
-        Task.__init__(self, period, callback, new_process)
-        if queue is None:
-            queue_class = mp.Queue if new_process else Queue
-            queue = queue_class(hwm)
-        self._queue = queue
+        self._queue = _queue(queue, hwm, new_process)
+        Task.__init__(self, period, callback, new_process=new_process)
 
     def add(self, obj):
         self._queue.put(obj)
+
+
+class Streamer(Task):
+
+    def __init__(self, period, chunk, queue=None, hwm=10000,
+                 new_process=False):
+        def callback():
+            for obj in chunk():
+                self._queue.put(obj)
+        self._queue = _queue(queue, hwm, new_process)
+        Task.__init__(self, period, callback, new_process=new_process)
+
+    def get(self):
+        return self._queue.get()
+
+    def __iter__(self):
+        return self
+
+    __next__ = get
 
 
 def dequeue(queue, at_least=1):
@@ -94,3 +110,10 @@ def dequeue(queue, at_least=1):
             yield queue.get_nowait()
     except Empty:
         pass
+
+
+def _queue(queue, hwm, new_process):
+    if queue is None:
+        queue_class = mp.Queue if new_process else Queue
+        queue = queue_class(hwm)
+    return queue
