@@ -155,7 +155,8 @@ class PgTestCase(TestCase):
         sh('createdb %s' % self.db)
 
     def tearDown(self):
-        sh('dropdb %s' % self.db)
+        # Try to kill it in bg because some conns might still be open.
+        sh('dropdb %s &' % self.db)
 
     def connect(self, **kwargs):
         return psycopg2.connect(dbname=self.db, **kwargs)
