@@ -41,6 +41,14 @@ def set_timezone(timezone=None):
         del os.environ['TZ']
 
 
+def as_memory(memory):
+    try:
+        memory, period = memory
+        return memory ** (1 / period)
+    except TypeError:
+        return memory
+
+
 def as_timer(period_or_timer):
     if isinstance(period_or_timer, Timer):
         return period_or_timer

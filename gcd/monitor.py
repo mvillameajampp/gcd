@@ -10,124 +10,116 @@ from contextlib import contextmanager
 from gcd.etc import chunks
 from gcd.work import Batcher, Task
 from gcd.store import Store, execute
-from gcd.chronos import day
+from gcd.chronos import as_memory
 
 
-class MovingStatistics:
+class Statistics:
 
-    def __init__(self, memory=1, period=day):
-        self.n = 0
-        self.sum = 0
-        self.sqsum = 0
+    def __init__(self, memory=1):
+        self._memory = as_memory(memory)
+        self._max_time = None
+        self.n = self._sum = self._sqsum = 0
         self.min = float('inf')
         self.max = -float('inf')
-        self._memory = memory ** (1 / period)
-        self._last = time.time()
 
-    def add(self, x):
-        now = time.time()
-        mu = self._memory ** (now - self._last)
-        self._last = now
-        self.n += mu * 1
-        self.sum = mu * self.sum + x
-        self.sqsum = mu * self.sqsum + x*x
-        self.min = min(mu * self.min, x)
-        self.max = max(mu * self.max, x)
+    def add(self, x, x_time=None):
+        if x_time is None:
+            x_time = time.time()
+        if self._max_time is None:
+            self._max_time = x_time
+        delta = x_time - self._max_time
+        if delta >= 0:
+            m, w = self._memory ** delta, 1
+            self._max_time = x_time
+        else:
+            m, w = 1, self._memory ** -delta
+        x *= w
+        self.n = m * self.n + w
+        self._sum = m * self._sum + x
+        self._sqsum = m * self._sqsum + x*x
+        self.min = min(m * self.min, x)
+        self.max = max(m * self.max, x)
         return self
 
     @property
     def mean(self):
         if self.n > 0:
-            return self.sum / self.n
+            return self._sum / self.n
 
     @property
     def stdev(self):
         if self.n > 1:
             sqmean = self.mean ** 2
-            return ((self.sqsum - self.n * sqmean) / (self.n - 1)) ** 0.5
-
-    def as_dict(self):
-        return dict(n=self.n, mean=self.mean, stdev=self.stdev,
-                    min=self.min, max=self.max)
-
-    def __repr__(self):
-        return repr(self.as_dict())
+            return ((self._sqsum - self.n * sqmean) / (self.n - 1)) ** 0.5
 
 
-class SimpleEventLog(defaultdict, Task):
+class Monitor(defaultdict, Task):
 
-    def __init__(self, log_period, log_fun, **log_base):
+    def __init__(self, log_period, log_fun, **base_info):
         defaultdict.__init__(self, int)
-        Task.__init__(self, log_period, self._log)
         self._log_fun = log_fun
-        self._log_base = log_base
+        self._base_info = base_info
+        Task.__init__(self, log_period, self._log)
 
-    def stat(self, *names_and_val, **kwargs):
-        names = names_and_val[:-1]
-        val = names_and_val[-1]
+    def stats(self, *names, memory=1):
         stats = self.get(names)
         if stats is None:
-            stats = self[names] = MovingStatistics(**kwargs)
-        stats.add(val)
+            stats = self[names] = Statistics(memory)
+        return stats
 
     @contextmanager
-    def timeit(self, *names, **kwargs):
+    def timeit(self, *names, memory=1):
         t0 = time.clock()
-        yield
-        t1 = time.clock()
-        self.stat(*names, t1 - t0, **kwargs)
+        try:
+            yield
+        finally:
+            t1 = time.clock()
+            self.stats(*names, memory).add(t1 - t0)
 
     def _log(self):
-        log = self._log_base.copy()
+        info = self._base_info.copy()
         for keys, value in self.items():
-            if isinstance(value, MovingStatistics):
-                value = value.as_dict()
-            sub_log = log
+            if isinstance(value, Statistics):
+                value = {a: getattr(value, a)
+                         for a in ('n', 'mean', 'stdev', 'min', 'max')}
+            sub_info = info
             for key in keys[:-1]:
-                sub_log = sub_log.setdefault(key, {})
-            sub_log[keys[-1]] = value
-        self._log_fun(log)
+                sub_info = sub_info.setdefault(key, {})
+            sub_info[keys[-1]] = value
+        self._log_fun(info)
         self.clear()
-
-
-class JsonDateTimeEncoder(json.JSONEncoder):
-
-    def default(self, obj):
-        if isinstance(obj, (datetime.datetime, datetime.date)):
-            return obj.isoformat()
-        else:
-            return json.JSONEncoder.default(self, obj)
 
 
 class JsonFormatter(logging.Formatter, json.JSONEncoder):
 
-    def __init__(self, attrs=[], encoder=JsonDateTimeEncoder):
+    def __init__(self, attrs=('name', 'levelname', 'created')):
         logging.Formatter.__init__(self)
         self._attrs = attrs
-        self._encoder = JsonDateTimeEncoder
 
     def format(self, record):
-        log = {}
+        log = {a: getattr(record, a) for a in self._attrs}
         if isinstance(record.msg, dict):
             log.update(record.msg)
         else:
             log['message'] = record.getMessage()
         if record.exc_info:
             log['exc_info'] = self.formatException(record.exc_info)
-        for attr in self._attrs:
-            if attr == 'asctime':
-                val = self.formatTime(record)
+        return json.dumps(log, cls=self._Encoder)
+
+    class _Encoder(json.JSONEncoder):
+
+        def default(self, obj):
+            if isinstance(obj, (datetime.datetime, datetime.date)):
+                return obj.timestamp()
             else:
-                val = getattr(record, attr, None)
-            log[attr] = val
-        return json.dumps(log, cls=JsonDateTimeEncoder)
+                return super().default(obj)
 
 
 class StoreHandler(logging.Handler):
 
-    def __init__(self, store):
+    def __init__(self, store, period=5):
         logging.Handler.__init__(self)
-        self._batcher = Batcher(5, store.add).start()
+        self._batcher = Batcher(period, store.add).start()
 
     def emit(self, record):
         try:

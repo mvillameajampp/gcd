@@ -6,15 +6,15 @@ import statistics
 from unittest import TestCase, main
 from unittest.mock import patch
 
-from gcd.monitor import JsonFormatter, MovingStatistics
+from gcd.monitor import JsonFormatter, Statistics
 from gcd.chronos import day
 
 
-class TestMovingStatistics(TestCase):
+class TestStatistics(TestCase):
 
     def test(self):
         xs = 1, 2, 3
-        stats = MovingStatistics()
+        stats = Statistics()
         for x in xs:
             stats.add(x)
         self.assertEqual(stats.mean, statistics.mean(xs))
@@ -23,15 +23,17 @@ class TestMovingStatistics(TestCase):
         self.assertEqual(stats.max, max(xs))
         self.assertEqual(stats.n, len(xs))
 
-    @patch('time.time')
+    @patch('gcd.monitor.time')
     def test_memory(self, time_):
-        time_.return_value = 0
-        stats = MovingStatistics(memory=0.5)
+        time_.time.return_value = 0
+        stats = Statistics((0.5, day))
         stats.add(2)
-        time_.return_value = day
+        time_.time.return_value = day
         stats.add(3)
-        self.assertAlmostEqual(stats.mean, (2 * 0.5 + 3) / (1 * 0.5 + 1))
-        self.assertAlmostEqual(stats.n, 1 * 0.5 + 1)
+        stats.add(4, 0)
+        n = 0.5 + 1 + 0.5
+        self.assertAlmostEqual(stats.mean, (2 * 0.5 + 3 + 4 * 0.5) / n)
+        self.assertAlmostEqual(stats.n, n)
 
 
 class TestJsonFormatter(TestCase):
