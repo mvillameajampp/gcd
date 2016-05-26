@@ -8,7 +8,7 @@ from collections import defaultdict
 from contextlib import contextmanager
 
 from gcd.etc import chunks
-from gcd.work import Batcher, Task
+from gcd.work import Batcher
 from gcd.store import Store, execute
 from gcd.chronos import as_memory
 
@@ -51,14 +51,11 @@ class Statistics:
             return ((self._sqsum - self.n * sqmean) / (self.n - 1)) ** 0.5
 
 
-class Monitor(defaultdict, Task):
+class Monitor(defaultdict):
 
-    def __init__(self, log_period, log_fun, **base_info):
-        defaultdict.__init__(self, int)
-        self._log_fun = log_fun
-        self._log_handlers = []
-        self._base_info = base_info
-        Task.__init__(self, log_period, self._log)
+    def __init__(self, **info_base):
+        super().__init__(int)
+        self._info_base = info_base
 
     def stats(self, *names, memory=1):
         stats = self.get(names)
@@ -75,13 +72,8 @@ class Monitor(defaultdict, Task):
             t1 = time.clock()
             self.stats(*names, memory).add(t1 - t0)
 
-    def on_log(self, handler):
-        self._log_handlers.append(handler)
-
-    def _log(self):
-        for handler in self._log_handlers:
-            handler(self)
-        info = self._base_info.copy()
+    def info(self):
+        info = self._info_base.copy()
         for keys, value in self.items():
             if isinstance(value, Statistics):
                 value = {a: getattr(value, a)
@@ -90,8 +82,7 @@ class Monitor(defaultdict, Task):
             for key in keys[:-1]:
                 sub_info = sub_info.setdefault(key, {})
             sub_info[keys[-1]] = value
-        self._log_fun(info)
-        self.clear()
+        return info
 
 
 class JsonFormatter(logging.Formatter, json.JSONEncoder):
