@@ -44,9 +44,10 @@ def set_timezone(timezone=None):
 def as_memory(memory):
     try:
         memory, period = memory
-        return memory ** (1 / period)
     except TypeError:
-        return memory
+        memory, period = memory, 1
+    assert 0 < memory <= 1
+    return memory ** (1 / period)
 
 
 def as_timer(period_or_timer):

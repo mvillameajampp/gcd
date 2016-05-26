@@ -16,11 +16,11 @@ from gcd.chronos import as_memory
 class Statistics:
 
     def __init__(self, memory=1):
-        self._memory = as_memory(memory)
-        self._max_time = None
+        self.memory = as_memory(memory)
         self.n = self._sum = self._sqsum = 0
         self.min = float('inf')
         self.max = -float('inf')
+        self._max_time = None
 
     def add(self, x, x_time=None):
         if x_time is None:
