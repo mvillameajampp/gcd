@@ -56,6 +56,7 @@ class Monitor(defaultdict, Task):
     def __init__(self, log_period, log_fun, **base_info):
         defaultdict.__init__(self, int)
         self._log_fun = log_fun
+        self._log_handlers = []
         self._base_info = base_info
         Task.__init__(self, log_period, self._log)
 
@@ -74,7 +75,12 @@ class Monitor(defaultdict, Task):
             t1 = time.clock()
             self.stats(*names, memory).add(t1 - t0)
 
+    def on_log(self, handler):
+        self._log_handlers.append(handler)
+
     def _log(self):
+        for handler in self._log_handlers:
+            handler(self)
         info = self._base_info.copy()
         for keys, value in self.items():
             if isinstance(value, Statistics):
