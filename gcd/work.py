@@ -1,7 +1,9 @@
 import logging
+import heapq
 import multiprocessing as mp
 import threading as mt
 
+from math import inf
 from queue import Empty, Queue
 
 from gcd.chronos import as_timer
@@ -110,6 +112,34 @@ def dequeue(queue, at_least=1):
             yield queue.get_nowait()
     except Empty:
         pass
+
+
+def sortedq(queue, max_ooo=inf, log_period=0):
+    if max_ooo < inf and log_period > 0:
+        def log():
+            nonlocal seen, lost
+            if lost:
+                logger.info(dict(seen=seen, lost=lost))
+                seen = lost = 0
+        Task(log_period, log)
+    heap = []
+    max_seq = -1
+    out_seq = seen = lost = 0
+    while True:
+        seq, data = msg = queue.get()
+        seen += 1
+        if seq < out_seq:
+            continue
+        max_seq = max(max_seq, seq)
+        heapq.heappush(heap, msg)
+        while heap:
+            seq, data = heap[0]
+            if seq > out_seq and max_seq - seq < max_ooo:
+                break
+            lost += seq - out_seq
+            out_seq = seq + 1
+            heapq.heappop(heap)
+            yield data
 
 
 def _queue(queue, hwm, new_process):
