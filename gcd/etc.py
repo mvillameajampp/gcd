@@ -39,6 +39,13 @@ def chunks(iterable, size):
             return
 
 
+def split(seq, nparts):
+    size = len(seq) / nparts
+    idxs = [round(size * i) for i in range(parts + 1)]
+    for i, j in zip(idxs[:-1], idxs[1:]):
+        yield seq[i:j]
+
+
 def snippet(text, length):
     if len(text) <= length:
         return text
