@@ -76,9 +76,9 @@ def as_file(file_or_path, *args, **kwargs):
 
 def load_pyconfig(file_or_path, config=None):
     config = config or Config()
-    config.__dict__['Config'] = Config
+    config.Config = Config
     with as_file(file_or_path) as cfg_file:
-        exec(cfg_file.read(), config.__dict__)
+        exec(cfg_file.read(), config)
     return config
 
 
@@ -111,21 +111,18 @@ def template(file_or_path_or_str, **kwargs):
         return environment.from_string(file_or_path_or_str)
 
 
-class Bundled:
+class Bundle(dict):
 
-    def __eq__(self, other):
-        return self.__dict__ == other.__dict__
+    __slots__ = ()
 
-    def __repr__(self):
-        return repr(self.__dict__)
+    def __getattr__(self, name):
+        return self[name]
 
+    def __setattr__(self, name, value):
+        self[name] = value
 
-class Bundle(Bundled):
-
-    def __init__(self, dict=None, **kwargs):
-        if dict is not None:
-            self.__dict__ = dict
-        self.__dict__.update(kwargs)
+    def __hasattr__(self, name):
+        return name in self
 
 
 class Config(Bundle):

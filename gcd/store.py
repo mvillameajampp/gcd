@@ -2,12 +2,12 @@ import logging
 import threading
 import random
 import re
+import zlib
 import time
-import json
 import pickle
 import psycopg2
+import json as json_
 
-from itertools import chain
 from unittest import TestCase
 from operator import attrgetter
 from psycopg2.pool import ThreadedConnectionPool
@@ -23,7 +23,7 @@ def execute(sql, args=(), cursor=None, values=False):
 
 
 def executemany(sql, args, cursor=None):
-    return _execute('executemany', sql, args, cursor)
+    return _execute('executemany', sql, args, cursor, False)
 
 
 class Transaction:
@@ -47,12 +47,11 @@ class Transaction:
         active = Transaction.active()
         if active:
             return active
-        else:
-            Transaction._local.active = self
-            if self._pool:
-                self._conn = self._pool.acquire()
-            self._cursors = []
-            return self
+        Transaction._local.active = self
+        if self._pool:
+            self._conn = self._pool.acquire()
+        self._cursors = []
+        return self
 
     def cursor(self, *args, **kwargs):
         cursor = self._conn.cursor(*args, **kwargs)
@@ -69,7 +68,7 @@ class Transaction:
                     if not getattr(cursor, 'withhold', False):
                         cursor.close()
                 except Exception:
-                    logger.exception('Error closing cursor')
+                    pass  # Might have been legitimately closed by the user.
             if type_ is None:
                 self._conn.commit()
             else:
@@ -85,11 +84,16 @@ class Transaction:
 
 class Store:
 
-    def __init__(self, conn_or_pool=None):
+    def __init__(self, conn_or_pool=None, create=True):
         self._conn_or_pool = conn_or_pool
+        if create:
+            self._create()
 
     def transaction(self):
         return Transaction(self._conn_or_pool)
+
+    def _create(self):
+        raise NotImplementedError
 
 
 class PgConnectionPool:
@@ -112,32 +116,38 @@ class PgConnectionPool:
     def close(self):
         self._pool.closeall()
 
+    __del__ = close
+
 
 class PgFlattener:
 
-    def __init__(self, obj_type=None, col_type='jsonb'):
-        self.col_type = col_type
-        self._state_to_col, self._col_to_state = {
-            'json': (json.dumps, identity),
-            'jsonb': (json.dumps, identity),
-            'bytea': (pickle.dumps, pickle.loads)
-        }[col_type]
-
+    def __init__(self, obj_type, json=False, gzip=False):
+        assert not (json and gzip)
         self.obj_type = obj_type
-        if obj_type is None:
-            self._obj_to_state = identity
-        elif hasattr(obj_type, '__getstate__'):
-            self._obj_to_state = obj_type.__getstate__
-            self._set_state = obj_type.__setstate__
+        self.col_type = 'jsonb' if json else 'bytea'
+
+        if json:
+            pair = json_.dumps, json_.loads
+        elif not gzip:
+            pair = pickle.dumps, pickle.loads
         else:
-            self._obj_to_state = attrgetter('__dict__')
-            self._set_state = attrsetter('__dict__')
+            pair = (lambda obj: zlib.compress(pickle.dumps(obj)),
+                    lambda col: pickle.loads(zlib.decompress(col)))
+        self._dumps, self._loads = pair
+
+        if obj_type is None:
+            pair = identity, None
+        elif hasattr(obj_type, '__getstate__'):
+            pair = obj_type.__get_state__, obj_type.__setstate__
+        elif hasattr(obj_type, '__dict__'):
+            pair = attrgetter('__dict__'), attrsetter('__dict__')
+        self._get_state, self._set_state = pair
 
     def flatten(self, obj):
-        return self._state_to_col(self._obj_to_state(obj))
+        return self._dumps(self._get_state(obj))
 
     def unflatten(self, col):
-        state = self._col_to_state(col)
+        state = self._loads(col)
         if self.obj_type:
             obj = self.obj_type.__new__(self.obj_type)
             self._set_state(obj, state)
@@ -165,7 +175,7 @@ class PgTestCase(TestCase):
         return PgConnectionPool(dbname=self.db, **kwargs)
 
 
-def _execute(attr, sql, args, cursor, values=False):
+def _execute(attr, sql, args, cursor, values):
     if cursor is None:
         cursor = Transaction.active().cursor()
     fun = getattr(cursor, attr)
@@ -181,8 +191,8 @@ def _execute(attr, sql, args, cursor, values=False):
 def _values(sql, args):  # args can be any iterable.
     args_iter = iter(args)
     arg = next(args_iter)
-    args_iter = chain((arg,), args_iter)
-    args = tuple(v for a in args_iter for v in a)
+    args = list(arg)
+    args.extend(v for a in args_iter for v in a)
     value_sql = '(' + ','.join(['%s'] * len(arg)) + ')'
     values_sql = 'VALUES ' + ','.join([value_sql] * (len(args) // len(arg)))
     sql %= values_sql
@@ -195,8 +205,9 @@ def _debugged(fun, sql, args):
     log_args = snippet(str(args[:20]), 100)
     logger.debug(dict(query=query_id, sql=log_sql, args=log_args))
     try:
-        start_time = time.time()
+        t0 = time.perf_counter()
         fun(sql, args)
-        logger.debug(dict(query=query_id, time=time.time() - start_time))
+        t1 = time.perf_counter()
+        logger.debug(dict(query=query_id, time=t1 - t0))
     except:
         logger.exception(dict(query=query_id))

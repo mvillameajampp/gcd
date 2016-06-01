@@ -65,11 +65,11 @@ class Monitor(defaultdict):
 
     @contextmanager
     def timeit(self, *names, memory=1):
-        t0 = time.clock()
+        t0 = time.perf_counter()
         try:
             yield
         finally:
-            t1 = time.clock()
+            t1 = time.perf_counter()
             self.stats(*names, memory).add(t1 - t0)
 
     def info(self):
