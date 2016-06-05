@@ -1,7 +1,6 @@
 import time
 import json
 import logging
-import datetime
 import traceback
 
 from collections import defaultdict
@@ -85,11 +84,12 @@ class Monitor(defaultdict):
         return info
 
 
-class JsonFormatter(logging.Formatter, json.JSONEncoder):
+class DictFormatter(logging.Formatter):
 
-    def __init__(self, attrs=('name', 'levelname', 'created')):
-        logging.Formatter.__init__(self)
-        self._attrs = attrs
+    def __init__(self, attrs=None):
+        super().__init__()
+        self._attrs = attrs or ('name', 'levelname', 'created')
+        assert 'asctime' not in self._attrs
 
     def format(self, record):
         log = {a: getattr(record, a) for a in self._attrs}
@@ -98,16 +98,22 @@ class JsonFormatter(logging.Formatter, json.JSONEncoder):
         else:
             log['message'] = record.getMessage()
         if record.exc_info:
-            log['exc_info'] = self.formatException(record.exc_info)
-        return json.dumps(log, cls=self._Encoder)
+            if not record.exc_text:
+                record.exc_text = self.formatException(record.exc_info)
+            log['exc_info'] = record.exc_text
+        if record.stack_info:
+            log['stack_info'] = self.formatStack(record.stack_info)
+        return log
 
-    class _Encoder(json.JSONEncoder):
 
-        def default(self, obj):
-            if isinstance(obj, (datetime.datetime, datetime.date)):
-                return obj.timestamp()
-            else:
-                return super().default(obj)
+class JsonFormatter(DictFormatter):
+
+    def __init__(self, attrs=None, *args, **kwargs):
+        super().__init__(attrs)
+        self._dumps = lambda log: json.dumps(log, *args, **kwargs)
+
+    def format(self, record):
+        return self._dumps(super().format(record))
 
 
 class StoreHandler(logging.Handler):
@@ -123,11 +129,11 @@ class StoreHandler(logging.Handler):
             traceback.print_exc()
 
 
-class PgLogStore(Store):
+class PgJsonLogStore(Store):
 
-    def __init__(self, conn_or_pool=None, table='logs'):
-        super().__init__(conn_or_pool)
+    def __init__(self, conn_or_pool=None, table='logs', create=True):
         self._table = table
+        super().__init__(conn_or_pool, create)
 
     def add(self, logs):
         for chunk in chunks(logs, 1000):
@@ -137,10 +143,6 @@ class PgLogStore(Store):
                         SELECT cast(v.log AS jsonb) FROM (%%s) AS v (log)
                         """ % self._table, ((l,) for l in chunk), values=True)
 
-    def create(self, drop=False):
+    def _create(self):
         with self.transaction():
-            execute("""
-                    %sDROP TABLE IF EXISTS %s;
-                    CREATE TABLE %s (log jsonb);
-                    """ % ('' if drop else '--', self._table, self._table))
-        return self
+            execute('CREATE TABLE IF NOT EXISTS %s (log jsonb)' % self._table)
