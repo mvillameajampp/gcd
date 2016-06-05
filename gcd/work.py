@@ -26,7 +26,7 @@ _fork_handlers = []
 
 class Process(mp.Process):
 
-    def __init__(self, target=None, *args, daemon=True, **kwargs):
+    def __init__(self, target, *args, daemon=True, **kwargs):
         mp.Process.__init__(self, target=target, daemon=daemon, args=args,
                             kwargs=kwargs)
 
@@ -41,7 +41,7 @@ class Process(mp.Process):
 
 class Thread(mt.Thread):
 
-    def __init__(self, target=None, *args, daemon=True, **kwargs):
+    def __init__(self, target, *args, daemon=True, **kwargs):
         mt.Thread.__init__(self, target=target, daemon=daemon, args=args,
                            kwargs=kwargs)
 
@@ -74,34 +74,33 @@ class Task:
 
 class Batcher(Task):
 
-    def __init__(self, period, handle, queue=None, hwm=10000, min_batch=1,
-                 new_process=False):
-        def callback():
-            handle(dequeue(self._queue, min_batch))
+    def __init__(self, period, handle, queue=None, hwm=10000,
+                 min_batch=1, new_process=False):
         self._queue = _queue(queue, hwm, new_process)
-        Task.__init__(self, period, callback, new_process=new_process)
+        super().__init__(period, self._callback, handle, min_batch,
+                         new_process=new_process)
 
     def add(self, obj):
         self._queue.put(obj)
+
+    def _callback(self, handle, min_batch):
+        handle(dequeue(self._queue, min_batch))
 
 
 class Streamer(Task):
 
     def __init__(self, period, chunk, queue=None, hwm=10000,
                  new_process=False):
-        def callback():
-            for obj in chunk():
-                self._queue.put(obj)
         self._queue = _queue(queue, hwm, new_process)
-        Task.__init__(self, period, callback, new_process=new_process)
+        super().__init__(period, self._callback, chunk,
+                         new_process=new_process)
 
-    def get(self):
-        return self._queue.get()
+    def get(self, *args, **kwargs):
+        self._queue.get()
 
-    def __iter__(self):
-        return self
-
-    __next__ = get
+    def _callback(self, chunk):
+        for obj in self._chunk():
+            self.queue.put(obj)
 
 
 def dequeue(queue, at_least=1):
