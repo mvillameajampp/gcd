@@ -74,9 +74,9 @@ class Task:
 
 class Batcher(Task):
 
-    def __init__(self, period, handle, *args, queue=None, hwm=10000,
-                 min_batch=1, new_process=False, **kwargs):
-        self._queue = _queue(queue, hwm, new_process)
+    def __init__(self, period, handle, *args, hwm=10000, shared=False,
+                 new_process=False, min_batch=1, **kwargs):
+        self._queue = _queue(hwm, shared, new_process)
         super().__init__(period, self._callback, handle, min_batch,
                          args, kwargs, new_process=new_process)
 
@@ -89,9 +89,9 @@ class Batcher(Task):
 
 class Streamer(Task):
 
-    def __init__(self, period, chunk, *args, queue=None, hwm=10000,
+    def __init__(self, period, chunk, *args, hwm=10000, shared=False,
                  new_process=False, **kwargs):
-        self._queue = _queue(queue, hwm, new_process)
+        self._queue = _queue(hwm, shared, new_process)
         super().__init__(period, self._callback, chunk,
                          args, kwargs, new_process=new_process)
 
@@ -118,7 +118,7 @@ def dequeue(queue, at_least=1):
         pass
 
 
-def sortedq(queue, max_ooo=inf, log_period=None):
+def sortedq(queue, log_period=None, max_ooo=inf):
     if max_ooo < inf and log_period:
         def log():
             nonlocal seen, lost
@@ -143,11 +143,10 @@ def sortedq(queue, max_ooo=inf, log_period=None):
             lost += seq - out_seq
             out_seq = seq + 1
             heapq.heappop(heap)
-            yield data
+            yield seq, data
 
 
-def _queue(queue, hwm, new_process):
-    if queue is None:
-        queue_class = mp.Queue if new_process else Queue
-        queue = queue_class(hwm)
-    return queue
+def _queue(hwm, shared, new_process):
+    assert shared or not new_process
+    queue_class = mp.Queue if (shared or new_process) else Queue
+    return queue_class(hwm)
