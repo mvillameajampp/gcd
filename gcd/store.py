@@ -138,7 +138,7 @@ class PgFlattener:
         if obj_type is None:
             pair = identity, None
         elif hasattr(obj_type, '__getstate__'):
-            pair = obj_type.__get_state__, obj_type.__setstate__
+            pair = obj_type.__getstate__, obj_type.__setstate__
         elif hasattr(obj_type, '__dict__'):
             pair = attrgetter('__dict__'), attrsetter('__dict__')
         self._get_state, self._set_state = pair
