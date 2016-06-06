@@ -6,7 +6,6 @@ import traceback
 from collections import defaultdict
 from contextlib import contextmanager
 
-from gcd.etc import chunks
 from gcd.work import Batcher
 from gcd.store import Store, execute
 from gcd.chronos import as_memory
@@ -136,12 +135,11 @@ class PgJsonLogStore(Store):
         super().__init__(conn_or_pool, create)
 
     def add(self, logs):
-        for chunk in chunks(logs, 1000):
-            with self.transaction():
-                execute("""
-                        INSERT INTO %s (log)
-                        SELECT cast(v.log AS jsonb) FROM (%%s) AS v (log)
-                        """ % self._table, ((l,) for l in chunk), values=True)
+        with self.transaction():
+            execute("""
+                    INSERT INTO %s (log)
+                    SELECT cast(v.log AS jsonb) FROM (%%s) AS v (log)
+                    """ % self._table, ((l,) for l in logs), values=True)
 
     def _create(self):
         with self.transaction():
