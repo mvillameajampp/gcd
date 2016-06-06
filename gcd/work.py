@@ -74,33 +74,38 @@ class Task:
 
 class Batcher(Task):
 
-    def __init__(self, period, handle, queue=None, hwm=10000,
-                 min_batch=1, new_process=False):
+    def __init__(self, period, handle, *args, queue=None, hwm=10000,
+                 min_batch=1, new_process=False, **kwargs):
         self._queue = _queue(queue, hwm, new_process)
         super().__init__(period, self._callback, handle, min_batch,
-                         new_process=new_process)
+                         args, kwargs, new_process=new_process)
 
     def add(self, obj):
         self._queue.put(obj)
 
-    def _callback(self, handle, min_batch):
-        handle(dequeue(self._queue, min_batch))
+    def _callback(self, handle, min_batch, args, kwargs):
+        handle(dequeue(self._queue, min_batch), *args, **kwargs)
 
 
 class Streamer(Task):
 
-    def __init__(self, period, chunk, queue=None, hwm=10000,
-                 new_process=False):
+    def __init__(self, period, chunk, *args, queue=None, hwm=10000,
+                 new_process=False, **kwargs):
         self._queue = _queue(queue, hwm, new_process)
         super().__init__(period, self._callback, chunk,
-                         new_process=new_process)
+                         args, kwargs, new_process=new_process)
 
-    def get(self, *args, **kwargs):
-        self._queue.get()
+    def get(self):
+        return self._queue.get()
 
-    def _callback(self, chunk):
-        for obj in self._chunk():
-            self.queue.put(obj)
+    __next__ = get
+
+    def __iter__(self):
+        return self
+
+    def _callback(self, chunk, args, kwargs):
+        for obj in chunk(*args, **kwargs):
+            self._queue.put(obj)
 
 
 def dequeue(queue, at_least=1):
