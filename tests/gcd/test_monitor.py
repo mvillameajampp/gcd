@@ -39,13 +39,13 @@ class TestStatistics(TestCase):
 class TestJsonFormatter(TestCase):
 
     def test_msg(self):
-        logger, log = self.logger([])
+        logger, log = self.logger()
         logger.info('hi %s %s', 1, 2)
         self.assertEqual(json.loads(log.getvalue()),
                          {'message': 'hi 1 2'})
 
     def test_dict(self):
-        logger, log = self.logger([])
+        logger, log = self.logger()
         logger.info({'x': 1, 'y': 2})
         self.assertEqual(json.loads(log.getvalue()),
                          {'x': 1, 'y': 2})
@@ -57,7 +57,7 @@ class TestJsonFormatter(TestCase):
                          {'x': 1, 'name': 'test', 'levelname': 'INFO'})
 
     def test_exc(self):
-        logger, log = self.logger([])
+        logger, log = self.logger()
         try:
             raise TypeError
         except:
