@@ -199,5 +199,8 @@ def clean(*paths):
         'Clean generated files.'
         yield
         for path in paths:  # noqa
-            os.remove(path)
+            try:
+                os.remove(path)
+            except FileNotFoundError:
+                pass
     return clean
