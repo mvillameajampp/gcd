@@ -5,7 +5,7 @@ import tempfile
 
 from unittest import TestCase, main
 
-from gcd.make import rule
+from gcd.meka import rule
 
 
 @rule

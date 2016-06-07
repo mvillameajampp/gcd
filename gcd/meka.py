@@ -35,7 +35,7 @@ def rule(fun):
 _memo = '.%s.memo' % path.splitext(path.basename(sys.argv[0]))[0]
 
 
-def make():
+def meka():
     os.chdir(path.dirname(argv[0]))
     cmd.arg('--quiet', '-q', action='store_true', help='Omit messages.')
 

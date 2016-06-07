@@ -87,8 +87,10 @@ class DictFormatter(logging.Formatter):
 
     def __init__(self, attrs=None):
         super().__init__()
-        self._attrs = attrs or ('name', 'levelname', 'created')
-        assert 'asctime' not in self._attrs
+        if attrs is None:
+            attrs = 'name', 'levelname', 'created'
+        assert 'asctime' not in attrs
+        self._attrs = attrs
 
     def format(self, record):
         log = {a: getattr(record, a) for a in self._attrs}
