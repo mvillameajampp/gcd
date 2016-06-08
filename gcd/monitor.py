@@ -130,7 +130,10 @@ class ContextFilter(logging.Filter):
 
     @staticmethod
     def info(**kwargs):
-        return ContextFilter.instance.info.update(kwargs)
+        if ContextFilter.instance:
+            ContextFilter.instance.info.update(kwargs)
+
+    instance = None
 
     def __init__(self, host=False, process=True, thread=False, **info):
         if host:
@@ -145,6 +148,7 @@ class ContextFilter(logging.Filter):
 
     def filter(self, record):
         record.context = self.info
+        return True
 
 
 class StoreHandler(logging.Handler):
