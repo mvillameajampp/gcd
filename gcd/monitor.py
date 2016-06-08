@@ -7,7 +7,7 @@ from collections import defaultdict
 from contextlib import contextmanager
 
 from gcd.work import Batcher
-from gcd.store import Store, execute
+from gcd.store import PgStore, execute
 from gcd.chronos import as_memory
 
 
@@ -119,8 +119,12 @@ class JsonFormatter(DictFormatter):
 
 class StoreHandler(logging.Handler):
 
-    def __init__(self, store, period=5):
+    def __init__(self, formatter=None, store=None, period=5):
         logging.Handler.__init__(self)
+        store = store or PgJsonLogStore()
+        if not isinstance(formatter, logging.Formatter):
+            formatter = JsonFormatter(formatter)
+        self.setFormatter(formatter)
         self._batcher = Batcher(period, store.add).start()
 
     def emit(self, record):
@@ -130,7 +134,7 @@ class StoreHandler(logging.Handler):
             traceback.print_exc()
 
 
-class PgJsonLogStore(Store):
+class PgJsonLogStore(PgStore):
 
     def __init__(self, conn_or_pool=None, table='logs', create=True):
         self._table = table

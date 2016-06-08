@@ -6,22 +6,10 @@ import threading as mt
 from math import inf
 from queue import Empty, Queue
 
-from gcd.chronos import as_timer
+from gcd.chronos import as_timer, minute
 
 
 logger = logging.getLogger(__name__)
-
-
-def on_fork(handler):
-    _fork_handlers.append(handler)
-
-
-def run_fork_handlers():  # Usually called by Process.run.
-    for handler in _fork_handlers:
-        handler()
-
-
-_fork_handlers = []
 
 
 class Process(mp.Process):
@@ -33,10 +21,6 @@ class Process(mp.Process):
     def start(self):
         mp.Process.start(self)
         return self
-
-    def run(self, *args, **kwargs):
-        run_fork_handlers()
-        super().run(*args, **kwargs)
 
 
 class Thread(mt.Thread):
@@ -118,7 +102,7 @@ def dequeue(queue, at_least=1):
         pass
 
 
-def sortedq(queue, max_ooo=inf, log_period=None):
+def sortedq(queue, max_ooo=inf, log_period=5*minute):
     if max_ooo < inf and log_period:
         def log():
             nonlocal seen, lost

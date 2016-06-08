@@ -104,38 +104,43 @@ class Command:
     def arg(self, *args, **kwargs):
         self._cur.add_argument(*args, **kwargs)
 
-    def sub(self, fun, name=None, doc=None):
-        if self._sub is None:
-            self._sub = self._top.add_subparsers(dest='cmd')
-            self._sub.required = True
-        try:
-            self._cur = self._sub.add_parser(
-                name or fun.__name__, help=doc or fun.__doc__)
-            gen = fun()
-            next(gen)  # Run first part of sub cmd.
-            self._cur.set_defaults(_gen=gen)
-        finally:
-            self._cur = self._top
-
     @property
     def args(self):
         if self._args is None:
             self._args = self._top.parse_args()
         return self._args
 
-    def run(self, fun, doc=None):
-        self._top.description = doc or fun.__doc__
-        gen = fun()
-        if gen is not None:  # Allow for sub cmds to be also top cmds.
-            next(gen)
+    def sub(self, fun=None, *, name=None, doc=None):
+        def deco(fun):
+            if self._sub is None:
+                self._sub = self._top.add_subparsers(dest='cmd')
+                self._sub.required = True
             try:
+                self._cur = self._sub.add_parser(
+                    name or fun.__name__, help=doc or fun.__doc__)
+                gen = fun()
+                next(gen)  # Run first part of sub cmd.
+                self._cur.set_defaults(_gen=gen)
+            finally:
+                self._cur = self._top
+        return deco(fun) if fun else deco
+
+    def run(self, fun=None, *, doc=None):
+        def deco(fun):
+            self._top.description = doc or fun.__doc__
+            gen = fun()
+            if gen is not None:  # Allow for sub cmds to be also top cmds.
                 next(gen)
-            except StopIteration:
-                pass
-        if '_gen' in self.args:  # Run second part of sub cmd.
-            try:
-                next(self._args._gen)
-            except StopIteration:
-                pass
+                try:
+                    next(gen)
+                except StopIteration:
+                    pass
+            if '_gen' in self.args:  # Run second part of sub cmd.
+                try:
+                    next(self._args._gen)
+                except StopIteration:
+                    pass
+        is_main = sys._getframe().f_back.f_globals['__name__'] == '__main__'
+        return (is_main and deco(fun)) if fun else deco
 
 cmd = Command()

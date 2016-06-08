@@ -87,13 +87,21 @@ class Store:
     def __init__(self, conn_or_pool=None, create=True):
         self._conn_or_pool = conn_or_pool
         if create:
-            self._create()
+            with self.transaction():
+                self._creation_lock()
+                self._create()
 
     def transaction(self):
         return Transaction(self._conn_or_pool)
 
     def _create(self):
         raise NotImplementedError
+
+
+class PgStore(Store):
+
+    def _creation_lock(self):
+        execute('SELECT pg_advisory_xact_lock(0)')
 
 
 class PgConnectionPool:
@@ -114,7 +122,8 @@ class PgConnectionPool:
         self._pool.putconn(conn)
 
     def close(self):
-        self._pool.closeall()
+        if hasattr(self, '_pool'):
+            self._pool.closeall()
 
     __del__ = close
 
@@ -127,7 +136,7 @@ class PgFlattener:
         self.col_type = 'jsonb' if json else 'bytea'
 
         if json:
-            pair = json_.dumps, json_.loads
+            pair = json_.dumps, identity
         elif not gzip:
             pair = pickle.dumps, pickle.loads
         else:
