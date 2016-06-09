@@ -2,6 +2,9 @@ import time
 import json
 import logging
 import traceback
+import threading as mt
+import multiprocessing as mp
+import socket
 
 from collections import defaultdict
 from contextlib import contextmanager
@@ -88,12 +91,13 @@ class DictFormatter(logging.Formatter):
     def __init__(self, attrs=None):
         super().__init__()
         if attrs is None:
-            attrs = 'name', 'levelname', 'created'
+            attrs = 'name', 'levelname', 'created', 'context'
         assert 'asctime' not in attrs
         self._attrs = attrs
 
     def format(self, record):
-        log = {a: getattr(record, a) for a in self._attrs}
+        log = {a: getattr(record, a)
+               for a in self._attrs if hasattr(record, a)}
         if isinstance(record.msg, dict):
             log.update(record.msg)
         else:
@@ -115,6 +119,36 @@ class JsonFormatter(DictFormatter):
 
     def format(self, record):
         return self._dumps(super().format(record))
+
+
+class ContextFilter(logging.Filter):
+
+    @staticmethod
+    def install(*args, **kwargs):
+        ContextFilter.instance = ContextFilter(*args, **kwargs)
+        return ContextFilter.instance
+
+    @staticmethod
+    def info(**kwargs):
+        if ContextFilter.instance:
+            ContextFilter.instance.info.update(kwargs)
+
+    instance = None
+
+    def __init__(self, host=False, process=True, thread=False, **info):
+        if host:
+            info['host'] = socket.gethostname()
+        if process:
+            p = mp.current_process()
+            info['process'] = p.name, p.pid
+        if thread:
+            t = mt.current_thread()
+            info['thread'] = t.name, t.ident
+        self.info = info
+
+    def filter(self, record):
+        record.context = self.info
+        return True
 
 
 class StoreHandler(logging.Handler):
