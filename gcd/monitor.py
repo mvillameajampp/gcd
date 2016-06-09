@@ -2,9 +2,8 @@ import time
 import json
 import logging
 import traceback
-import threading as mt
-import multiprocessing as mp
 import socket
+import multiprocessing as mp
 
 from collections import defaultdict
 from contextlib import contextmanager
@@ -135,15 +134,12 @@ class ContextFilter(logging.Filter):
 
     instance = None
 
-    def __init__(self, host=False, process=True, thread=False, **info):
+    def __init__(self, host=False, process=True, **info):
         if host:
             info['host'] = socket.gethostname()
         if process:
             p = mp.current_process()
             info['process'] = p.name, p.pid
-        if thread:
-            t = mt.current_thread()
-            info['thread'] = t.name, t.ident
         self.info = info
 
     def filter(self, record):
