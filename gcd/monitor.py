@@ -50,6 +50,10 @@ class Statistics:
             sqmean = self.mean ** 2
             return ((self._sqsum - self.n * sqmean) / (self.n - 1)) ** 0.5
 
+    def as_dict(self):
+        return {a: getattr(self, a)
+                for a in ('n', 'mean', 'stdev', 'min', 'max')}
+
 
 class Monitor(defaultdict):
 
@@ -76,8 +80,7 @@ class Monitor(defaultdict):
         info = self._info_base.copy()
         for keys, value in self.items():
             if isinstance(value, Statistics):
-                value = {a: getattr(value, a)
-                         for a in ('n', 'mean', 'stdev', 'min', 'max')}
+                value = value.as_dict()
             sub_info = info
             for key in keys[:-1]:
                 sub_info = sub_info.setdefault(key, {})
