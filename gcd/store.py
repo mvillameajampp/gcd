@@ -130,7 +130,7 @@ class PgConnectionPool:
 
 class PgFlattener:
 
-    def __init__(self, obj_type, json=False, gzip=False):
+    def __init__(self, obj_type=None, json=False, gzip=False):
         assert not (json and gzip)
         self.obj_type = obj_type
         self.col_type = 'jsonb' if json else 'bytea'
