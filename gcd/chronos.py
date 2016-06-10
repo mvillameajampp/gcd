@@ -19,6 +19,7 @@ def gm_parse(string, format=None):
         formats = format,
     else:
         formats = ('%Y-%m-%d %H:%M:%S.%f', '%Y-%m-%d %H:%M:%S',
+                   '%Y-%m-%dT%H:%M:%S.%f', '%Y-%m-%dT%H:%M:%S',
                    '%Y-%m-%dZ%H:%M:%S.%f', '%Y-%m-%dZ%H:%M:%S',
                    '%Y-%m-%d', '%H:%M:%S.%f', '%H:%M:%S')
     for format in formats:
