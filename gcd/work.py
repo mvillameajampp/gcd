@@ -102,7 +102,7 @@ def dequeue(queue, at_least=1):
         pass
 
 
-def sortedq(queue, max_ooo=inf, log_period=span(minutes=5)):
+def sortedq(queue, log_period=span(minutes=5), max_ooo=10000):
     if max_ooo < inf and log_period:
         def log():
             nonlocal seen, lost
