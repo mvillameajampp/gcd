@@ -1,45 +1,38 @@
 import os
 import time
 
-from datetime import datetime
+from datetime import datetime, timedelta
 
 
-ms = millisecond = milliseconds = 1 / 1000
-second = seconds = 1000 * milliseconds
-minute = minutes = 60 * seconds
-hour = hours = 60 * minutes
-day = days = 24 * hours
-week = weeks = 7 * days
-month = months = 4 * weeks
-year = years = 12 * months
-
-
-def gm_parse(string, format=None):
-    if format:
-        formats = format,
-    else:
+def utc(*args, **kwargs):
+    if args and type(args[0]) is str:
+        iso = args[0].replace('T', ' ').rstrip('Z')
         formats = ('%Y-%m-%d %H:%M:%S.%f', '%Y-%m-%d %H:%M:%S',
-                   '%Y-%m-%dT%H:%M:%S.%f', '%Y-%m-%dT%H:%M:%S',
-                   '%Y-%m-%dZ%H:%M:%S.%f', '%Y-%m-%dZ%H:%M:%S',
                    '%Y-%m-%d', '%H:%M:%S.%f', '%H:%M:%S')
-    for format in formats:
-        try:
-            return datetime.strptime(string, format).timestamp()
-        except ValueError:
-            if format is formats[-1]:
-                raise
+        for format in formats:
+            try:
+                return datetime.strptime(iso, format).timestamp()
+            except ValueError:
+                if format is formats[-1]:
+                    raise
+    else:
+        return datetime(*args, **kwargs).timestamp()
 
 
-def gm_format(seconds, format='%Y-%m-%d %H:%M:%S.%f'):
-    return datetime.fromtimestamp(seconds).strftime(format)
+def span(*args, **kwargs):
+    return timedelta(*args, **kwargs).total_seconds()
+
+
+def iso(ts, format='%Y-%m-%d %H:%M:%S.%f'):
+    return datetime.fromtimestamp(ts).strftime(format)
 
 
 def set_timezone(timezone=None):
     if timezone:
         os.environ['TZ'] = timezone
-        time.tzset()
     elif 'TZ' in os.environ:
         del os.environ['TZ']
+    time.tzset()
 
 
 def as_memory(memory):
