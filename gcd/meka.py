@@ -6,7 +6,7 @@ import textwrap
 from itertools import chain
 
 from gcd.etc import as_many, template
-from gcd.nix import sh as _sh, sh_quote, cmd, path, argv
+from gcd.nix import sh as _sh, sh_quote, cmd, as_cmd, path, argv
 
 
 def rule(fun):
@@ -54,6 +54,7 @@ def echo(msg):
 
 
 def sh(cmd, input=None):
+    cmd = as_cmd(cmd)
     echo(cmd)
     return _sh(cmd, input)
 
