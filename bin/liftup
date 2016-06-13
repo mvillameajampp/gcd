@@ -49,7 +49,7 @@ def main():
     cmd.arg('input')
     args = cmd.args
 
-    res = gcd.__path__[0] + '/../res/'
+    res = gcd.__path__[0] + '/res/'
     output = args.output if args.output else tmpout(args)
     pandoc = 'pandoc -S -f markdown -c %s -o %s' % (
         sh_quote(res + 'github.css'), sh_quote(output))
