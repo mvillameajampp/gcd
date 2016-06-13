@@ -47,10 +47,10 @@ class Transaction:
         active = Transaction.active()
         if active:
             return active
-        Transaction._local.active = self
         if self._pool:
             self._conn = self._pool.acquire()
         self._cursors = []
+        Transaction._local.active = self
         return self
 
     def cursor(self, *args, **kwargs):

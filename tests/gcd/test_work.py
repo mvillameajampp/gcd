@@ -14,7 +14,7 @@ class TestSortedQueue(TestCase):
         q = queue.Queue()
         for msg in msgs:
             q.put(msg)
-        sq = sortedq(q, 2)
+        sq = sortedq(q, max_ooo=2)
         msgs.remove((3, 'd'))
         self.assertEqual(list(islice(sq, 6)), sorted(msgs))
 

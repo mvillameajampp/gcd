@@ -7,7 +7,7 @@ from unittest import TestCase, main
 from unittest.mock import patch
 
 from gcd.monitor import JsonFormatter, Statistics
-from gcd.chronos import day
+from gcd.chronos import span
 
 
 class TestStatistics(TestCase):
@@ -26,9 +26,9 @@ class TestStatistics(TestCase):
     @patch('gcd.monitor.time')
     def test_memory(self, time_):
         time_.time.return_value = 0
-        stats = Statistics((0.5, day))
+        stats = Statistics((0.5, span(days=1)))
         stats.add(2)
-        time_.time.return_value = day
+        time_.time.return_value = span(days=1)
         stats.add(3)
         stats.add(4, 0)
         n = 0.5 + 1 + 0.5

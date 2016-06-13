@@ -23,7 +23,7 @@ except ImportError:  # Python 2.
     reload = reload
 
 
-__all__ = ['reload', 'echo', 'lecho', 'pecho', 'brk', 'rbrk', 'fbrk']
+__all__ = ['reload', 'echo', 'lecho', 'pecho', 'brk', 'rbrk', 'fbrk', 'fixrl']
 
 
 def echo(*args, **kwargs):
@@ -59,6 +59,14 @@ def fbrk():
 def install_builtins():
     for attr in __all__:
         setattr(builtins, attr, globals()[attr])
+
+
+def fixrl():
+    # Workaround until 3.5.2: fix readline notion of current terminal width.
+    # https://bugs.python.org/issue23735
+    import ctypes
+    ctypes.cdll['libreadline.so'].rl_resize_terminal()
+    print('Readline fixed.')
 
 
 @contextmanager

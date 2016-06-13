@@ -15,9 +15,7 @@ argv = sys.argv
 
 
 def sh(cmd, input=None):
-    if not isinstance(cmd, str):
-        cmd = cmd[0] % tuple(sh_quote(arg) for arg in cmd[1:])
-    cmd = cmd.strip()
+    cmd = as_cmd(cmd)
     stdin = stdout = stderr = None
     if input is not None:
         if not isinstance(input, str):
@@ -38,6 +36,12 @@ def sh(cmd, input=None):
             raise ShError(proc.returncode, cmd, output, error)
         else:
             return output and output.strip('\n')
+
+
+def as_cmd(cmd):
+    if not isinstance(cmd, str):
+        cmd = cmd[0] % tuple(sh_quote(arg) for arg in cmd[1:])
+    return cmd.strip()
 
 
 def sh_quote(text, quote="'"):
@@ -137,7 +141,7 @@ class Command:
                     pass
             if '_gen' in self.args:  # Run second part of sub cmd.
                 try:
-                    next(self._args._gen)
+                    next(self.args._gen)
                 except StopIteration:
                     pass
         is_main = sys._getframe().f_back.f_globals['__name__'] == '__main__'

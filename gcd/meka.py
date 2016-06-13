@@ -6,7 +6,7 @@ import textwrap
 from itertools import chain
 
 from gcd.etc import as_many, template
-from gcd.nix import sh as _sh, sh_quote, cmd, path, argv
+from gcd.nix import sh as _sh, sh_quote, cmd, as_cmd, path, argv
 
 
 def rule(fun):
@@ -35,9 +35,10 @@ def rule(fun):
 _memo = '.%s.memo' % path.splitext(path.basename(sys.argv[0]))[0]
 
 
-def meka():
-    os.chdir(path.dirname(argv[0]))
-    cmd.arg('--quiet', '-q', action='store_true', help='Omit messages.')
+def meka(chdir=True):
+    if chdir:
+        os.chdir(path.dirname(argv[0]))
+    cmd.arg('--quiet', '-q', action='store_true', help='Suppress messages.')
 
 
 def echo(msg):
@@ -56,6 +57,7 @@ def echo(msg):
 
 
 def sh(cmd, input=None):
+    cmd = as_cmd(cmd)
     echo(cmd)
     return _sh(cmd, input)
 

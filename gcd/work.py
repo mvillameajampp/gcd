@@ -6,7 +6,7 @@ import threading as mt
 from math import inf
 from queue import Empty, Queue
 
-from gcd.chronos import as_timer, minute
+from gcd.chronos import as_timer, span
 
 
 logger = logging.getLogger(__name__)
@@ -102,7 +102,7 @@ def dequeue(queue, at_least=1):
         pass
 
 
-def sortedq(queue, max_ooo=inf, log_period=5*minute):
+def sortedq(queue, log_period=span(minutes=5), max_ooo=10000):
     if max_ooo < inf and log_period:
         def log():
             nonlocal seen, lost
