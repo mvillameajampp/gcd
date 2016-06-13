@@ -35,9 +35,10 @@ def rule(fun):
 _memo = '.%s.memo' % path.splitext(path.basename(sys.argv[0]))[0]
 
 
-def meka():
-    os.chdir(path.dirname(argv[0]))
-    cmd.arg('--quiet', '-q', action='store_true', help='Omit messages.')
+def meka(chdir=True):
+    if chdir:
+        os.chdir(path.dirname(argv[0]))
+    cmd.arg('--quiet', '-q', action='store_true', help='Suppress messages.')
 
 
 def echo(msg):

@@ -1,10 +1,11 @@
 #!/bin/python3
 
-from gcd.nix import sh, sh_quote, path, os, cmd, env, sys
-
 from urllib.parse import quote
-from tempfile import NamedTemporaryFile
 from pandocfilters import toJSONFilter, RawInline
+
+import gcd
+
+from gcd.nix import sh, sh_quote, path, os, cmd, env, sys
 
 
 def codecogs(key, value, format, meta):
@@ -16,38 +17,6 @@ def codecogs(key, value, format, meta):
             return RawInline('markdown', '![](%s)' % url)
         elif format == 'html':
             return RawInline('html', '<img src="%s"></img>' % url)
-
-
-def snippet():
-    template = NamedTemporaryFile('w', suffix='.html')
-    template.write("""\
-<style type="text/css">code{white-space: pre;}</style>
-$if(quotes)$
-<style type="text/css">q { quotes: "“" "”" "‘" "’"; }</style>
-$endif$
-$if(highlighting-css)$
-<style type="text/css">
-$highlighting-css$
-</style>
-$endif$
-$if(math)$
-$math$
-$endif$
-$for(include-before)$
-$include-before$
-$endfor$
-$if(toc)$
-<div id="$idprefix$TOC">
-$toc$
-</div>
-$endif$
-$body$
-$for(include-after)$
-$include-after$
-$endfor$
-""")
-    template.flush()
-    return template
 
 
 def tmpout(args):
@@ -80,12 +49,13 @@ def main():
     cmd.arg('input')
     args = cmd.args
 
+    res = gcd.__path__[0] + '/../res/'
     output = args.output if args.output else tmpout(args)
-    pandoc = 'pandoc -S -f markdown -o ' + sh_quote(output)
+    pandoc = 'pandoc -S -f markdown -c %s -o %s' % (
+        sh_quote(res + 'github.css'), sh_quote(output))
 
     if args.type == 'snippet':
-        template = snippet()  # The tmp file is auto-removed on finalization.
-        pandoc += ' -t html --template=' + sh_quote(template.name)
+        pandoc += ' -t html --template=' + sh_quote(res + 'snippet.html')
     elif args.type == 'github':
         pandoc += ' -s -t markdown_github'
         args.mathimg = True
