@@ -49,7 +49,7 @@ def echo(msg):
     except:
         width = 80
     lines = textwrap.wrap(msg, width=width)
-    bar = '=' * max(len(l) for l in lines)
+    bar = '~' * max(len(l) for l in lines)
     msg = '\n'.join(lines)
     print('\n\033[1m%s\n%s\n%s\n\033[0m' % (bar, msg, bar), flush=True)
 

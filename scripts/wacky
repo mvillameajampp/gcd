@@ -1,42 +1,57 @@
 #!/bin/python3
 
-from gcd.meka import cmd, rule, os, sys, path, sh, meka
+from gcd.meka import cmd, rule, os, sys, path as p, sh, meka, echo
 import re
 
 
 @rule
-def liftup(from_path, to_path, to_type):
+def publish(from_path, to_path, to_type):
     yield from_path, to_path
-    sh(('liftup -o %s -t %s %s', to_path, to_type, from_path))
-    if to_type == 'html' and not path.exists(to_path[:-5]):
-        os.symlink(path.realpath(to_path), to_path[:-5])
+    if to_type:
+        sh(('liftup -o %s -t %s %s', to_path, to_type, from_path))
+        if to_type == 'html' and not p.exists(to_path[:-5]):
+            os.symlink(p.realpath(to_path), to_path[:-5])
+    else:  # This is an asset.
+        echo('Copy asset to ' + to_path)
+        if p.exists(to_path):
+            os.unlink(to_path)
+        else:
+            os.makedirs(p.dirname(to_path), exist_ok=True)
+        os.link(from_path, to_path)
 
 
 def build():
-    in_filter = re.compile(cmd.args.filter)
-    p, out_dir, prev_dir = path, cmd.args.output_dir, cmd.args.preview_dir
-    if not p.exists(out_dir):
-        os.makedirs(out_dir)
-    if cmd.args.preview and not p.exists(prev_dir):
-        os.makedirs(prev_dir)
+    doc_regex = re.compile(cmd.args.doc_regex)
+    asset_regex = re.compile(cmd.args.asset_regex)
+    out_dir = cmd.args.output_dir
+    os.makedirs(out_dir, exist_ok=True)
+    if cmd.args.preview:
+        prev_dir = cmd.args.preview_dir
+        os.makedirs(prev_dir, exist_ok=True)
     for in_subdir, in_dirs, in_files in os.walk(cmd.args.input_dir):
-        for in_dir in list(in_dirs):  # Prune output and preview dirs.
+        for in_dir in list(in_dirs):  # Prune hidden, output and preview dirs.
             in_path = p.join(in_subdir, in_dir)
-            if p.samefile(in_path, out_dir) or p.samefile(in_path, prev_dir):
+            if (in_dir.startswith('.') or
+                    p.samefile(in_path, out_dir) or
+                    p.samefile(in_path, prev_dir)):
                 in_dirs.remove(in_dir)
-        out_prefix = in_subdir.lstrip('./')
-        if out_prefix:
-            out_prefix = out_prefix.replace('/', '-') + '-'
+        out_prefix = in_subdir.lstrip('./').replace('/', '-')
         for in_file in in_files:
             in_path = p.join(in_subdir, in_file)
-            if not in_filter.match(in_path):
+            is_doc = doc_regex.match(in_path)
+            is_asset = not is_doc and asset_regex.match(in_path)
+            if not is_doc and not is_asset:
                 continue
-            out_base = out_prefix + p.splitext(in_file)[0]
-            out_path = p.join(out_dir, out_base + '.md')
-            liftup(in_path, out_path, 'gfm')
+            out_base, out_ext = p.splitext(in_file)
+            if out_prefix:
+                out_base = out_prefix + '-' + out_base
+            out_path = p.join(
+                out_dir, out_base + (out_ext if is_asset else '.md'))
+            publish(in_path, out_path, (None if is_asset else 'gfm'))
             if cmd.args.preview:
-                prev_path = p.join(prev_dir, out_base + '.html')
-                liftup(out_path, prev_path, 'html')
+                prev_path = p.join(
+                    prev_dir, out_base + (out_ext if is_asset else '.html'))
+                publish(out_path, prev_path, (None if is_asset else 'html'))
 
 
 def watch():
@@ -61,9 +76,12 @@ def main():
             help='Also generate html preview.')
     cmd.arg('--watch', '-w', action='store_true',
             help='Monitor for changes and automatically regenerate output.')
-    cmd.arg('--filter', '-f', default=r'^.*\.(md|rst|org)$',
-            help="""Regex for input files, by default accept any file
+    cmd.arg('--doc-regex', '-d', default=r'^.*\.(md|rst|org)$',
+            help="""Regex for input documents, by default accept any file
                  with md, rst or org extension.""")
+    cmd.arg('--asset-regex', '-a', default=r'^.*/assets/.*$',
+            help="""Regex for asset files, by default accept any file
+                 directly or indirectly under an assets directory.""")
     cmd.arg('--input-dir', '-i', default='.',
             help='Input directory, by default the current directory.')
     cmd.arg('--output-dir', '-o', default='output',
@@ -73,6 +91,5 @@ def main():
     yield
     build()
     if cmd.args.watch:
-        print('\nMonitoring changes to input. Press Ctrl-C to stop.\n',
-              file=sys.stderr)
+        echo('Monitoring changes to input. Press Ctrl-C to stop.')
         watch()
