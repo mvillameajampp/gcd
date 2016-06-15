@@ -2,8 +2,7 @@
 
 from urllib.parse import quote
 from pandocfilters import toJSONFilter, RawInline
-
-import gcd
+from pkg_resources import resource_filename
 
 from gcd.nix import sh, sh_quote, path, os, cmd, env, sys
 
@@ -54,13 +53,14 @@ def main():
     cmd.arg('input')
     args = cmd.args
 
-    res = gcd.__path__[0] + '/res/'
     output = args.output if args.output else tmpout(args)
-    pandoc = 'pandoc -S -c %s -o %s' % (sh_quote(res + 'github.css'),
-                                        sh_quote(output))
+    pandoc = 'pandoc -S -c %s -o %s' % (
+        sh_quote(resource_filename('gcd', 'resources/github.css')),
+        sh_quote(output))
 
     if args.type == 'snippet':
-        pandoc += ' -t html --template=' + sh_quote(res + 'snippet.html')
+        pandoc += ' -t html --template=' + sh_quote(
+            resource_filename('gcd', 'resources/snippet.html'))
     elif args.type == 'gfm':
         pandoc += ' -s -t markdown_github'
         args.mathimg = True

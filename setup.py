@@ -4,6 +4,6 @@ setup(
     name='gcd',
     version='1.0',
     packages=['gcd'],
-    package_data={'gcd': ['res/*']},
-    scripts=['bin/liftup', 'bin/wacky']
+    package_data={'gcd': ['resources/*']},
+    scripts=['scripts/liftup', 'scripts/wacky']
 )
