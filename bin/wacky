@@ -1,6 +1,7 @@
 #!/bin/python3
 
-from gcd.meka import cmd, rule, os, path, sh, meka
+from gcd.meka import cmd, rule, os, sys, path, sh, meka
+import re
 
 
 @rule
@@ -8,34 +9,70 @@ def liftup(from_path, to_path, to_type):
     yield from_path, to_path
     sh(('liftup -o %s -t %s %s', to_path, to_type, from_path))
     if to_type == 'html' and not path.exists(to_path[:-5]):
-        os.symlink(to_path[5:], to_path[:-5])
+        os.symlink(path.realpath(to_path), to_path[:-5])
+
+
+def build():
+    in_filter = re.compile(cmd.args.filter)
+    p, out_dir, prev_dir = path, cmd.args.output_dir, cmd.args.preview_dir
+    if not p.exists(out_dir):
+        os.makedirs(out_dir)
+    if cmd.args.preview and not p.exists(prev_dir):
+        os.makedirs(prev_dir)
+    for in_subdir, in_dirs, in_files in os.walk(cmd.args.input_dir):
+        for in_dir in list(in_dirs):  # Prune output and preview dirs.
+            in_path = p.join(in_subdir, in_dir)
+            if p.samefile(in_path, out_dir) or p.samefile(in_path, prev_dir):
+                in_dirs.remove(in_dir)
+        out_prefix = in_subdir.lstrip('./')
+        if out_prefix:
+            out_prefix = out_prefix.replace('/', '-') + '-'
+        for in_file in in_files:
+            in_path = p.join(in_subdir, in_file)
+            if not in_filter.match(in_path):
+                continue
+            out_base = out_prefix + p.splitext(in_file)[0]
+            out_path = p.join(out_dir, out_base + '.md')
+            liftup(in_path, out_path, 'gfm')
+            if cmd.args.preview:
+                prev_path = p.join(prev_dir, out_base + '.html')
+                liftup(out_path, prev_path, 'html')
+
+
+def watch():
+    from watchdog.observers import Observer
+    from watchdog.events import FileSystemEventHandler
+
+    class Handler(FileSystemEventHandler):
+        def on_any_event(self, event):
+            build()
+    observer = Observer()
+    observer.schedule(Handler(), cmd.args.input_dir, recursive=True)
+    observer.start()
+    observer.join()
 
 
 @cmd.run
 def main():
-    'Publish all changes to output directory.'
+    """Generate wiki and optional preview from pandoc sources."""
+
     meka(False)
-    cmd.arg('--html', '-H', action='store_true',
-            help='Also generate html output.')
+    cmd.arg('--preview', '-p', action='store_true',
+            help='Also generate html preview.')
+    cmd.arg('--watch', '-w', action='store_true',
+            help='Monitor for changes and automatically regenerate output.')
+    cmd.arg('--filter', '-f', default=r'^.*\.(md|rst|org)$',
+            help="""Regex for input files, by default accept any file
+                 with md, rst or org extension.""")
+    cmd.arg('--input-dir', '-i', default='.',
+            help='Input directory, by default the current directory.')
+    cmd.arg('--output-dir', '-o', default='output',
+            help='Output directory, by default the ./output subdirectory.')
+    cmd.arg('--preview-dir', '-P', default='preview',
+            help='Preview directory, by default the ./preview subdirectory.')
     yield
-    if not path.exists('output'):
-        raise FileNotFoundError(
-            'The wiki repo must reside at output subdirectory.')
-    if cmd.args.html and not path.exists('html'):
-        os.makedirs('html')
-    for subdir, dirs, files in os.walk('.'):
-        if subdir == '.':
-            dirs.remove('output')
-            dirs.remove('.git')
-            out_prefix = ''
-        else:
-            out_prefix = subdir.lstrip('./').replace('/', '-') + '-'
-        for in_file in files:
-            if not in_file.endswith('.md'):
-                continue
-            in_path = subdir + '/' + in_file
-            out_path = 'output/' + out_prefix + in_file
-            liftup(in_path, out_path, 'github')
-            if cmd.args.html:
-                html_path = 'html/' + out_prefix + in_file[:-3] + '.html'
-                liftup(out_path, html_path, 'html')
+    build()
+    if cmd.args.watch:
+        print('\nMonitoring changes to input. Press Ctrl-C to stop.\n',
+              file=sys.stderr)
+        watch()
