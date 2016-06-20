@@ -15,17 +15,14 @@ def publish(from_path, to_path, to_type):
         echo('Copy asset to ' + to_path)
         if p.exists(to_path):
             os.unlink(to_path)
-        else:
-            os.makedirs(p.dirname(to_path), exist_ok=True)
         os.link(from_path, to_path)
 
 
 def build():
     doc_regex = re.compile(cmd.args.doc_regex)
-    asset_regex = re.compile(cmd.args.asset_regex)
-    out_dir = cmd.args.output_dir
+    out_dir, preview = cmd.args.output_dir, cmd.args.preview
     os.makedirs(out_dir, exist_ok=True)
-    if cmd.args.preview:
+    if preview:
         prev_dir = cmd.args.preview_dir
         os.makedirs(prev_dir, exist_ok=True)
     for in_subdir, in_dirs, in_files in os.walk(cmd.args.input_dir):
@@ -33,25 +30,24 @@ def build():
             in_path = p.join(in_subdir, in_dir)
             if (in_dir.startswith('.') or
                     p.samefile(in_path, out_dir) or
-                    p.samefile(in_path, prev_dir)):
+                    (preview and p.samefile(in_path, prev_dir))):
                 in_dirs.remove(in_dir)
         out_prefix = in_subdir.lstrip('./').replace('/', '-')
         for in_file in in_files:
+            if in_file.startswith('.'):
+                continue
             in_path = p.join(in_subdir, in_file)
             is_doc = doc_regex.match(in_path)
-            is_asset = not is_doc and asset_regex.match(in_path)
-            if not is_doc and not is_asset:
-                continue
             out_base, out_ext = p.splitext(in_file)
             if out_prefix:
                 out_base = out_prefix + '-' + out_base
             out_path = p.join(
-                out_dir, out_base + (out_ext if is_asset else '.md'))
-            publish(in_path, out_path, (None if is_asset else 'gfm'))
-            if cmd.args.preview:
+                out_dir, out_base + ('.md' if is_doc else out_ext))
+            publish(in_path, out_path, ('gfm' if is_doc else None))
+            if preview:
                 prev_path = p.join(
-                    prev_dir, out_base + (out_ext if is_asset else '.html'))
-                publish(out_path, prev_path, (None if is_asset else 'html'))
+                    prev_dir, out_base + ('.html' if is_doc else out_ext))
+                publish(out_path, prev_path, ('html' if is_doc else None))
 
 
 def watch():
@@ -78,10 +74,8 @@ def main():
             help='Monitor for changes and automatically regenerate output.')
     cmd.arg('--doc-regex', '-d', default=r'^.*\.(md|rst|org)$',
             help="""Regex for input documents, by default accept any file
-                 with md, rst or org extension.""")
-    cmd.arg('--asset-regex', '-a', default=r'^.*/assets/.*$',
-            help="""Regex for asset files, by default accept any file
-                 directly or indirectly under an assets directory.""")
+                 with md, rst or org extension. Everything else is considered
+                 a static asset.""")
     cmd.arg('--input-dir', '-i', default='.',
             help='Input directory, by default the current directory.')
     cmd.arg('--output-dir', '-o', default='output',
