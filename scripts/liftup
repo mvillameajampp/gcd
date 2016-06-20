@@ -72,6 +72,10 @@ def main():
     else:
         pandoc += ' --mathjax'
 
+    if args.input.endswith('.md'):
+        extensions = '+lists_without_preceding_blankline+autolink_bare_uris'
+        pandoc += ' -f markdown' + extensions
+
     sh(pandoc + ' ' + sh_quote(args.input))
 
     if args.subst:
