@@ -74,7 +74,7 @@ class Monitor(defaultdict):
             yield
         finally:
             t1 = time.perf_counter()
-            self.stats(*names, memory).add(t1 - t0)
+            self.stats(*names, memory=memory).add(t1 - t0)
 
     def info(self):
         info = self._info_base.copy()

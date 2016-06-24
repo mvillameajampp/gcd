@@ -3,6 +3,7 @@ from setuptools import setup
 setup(
     name='gcd',
     version='1.0',
-    packages=('gcd',),
-    scripts=['bin/liftup']
+    packages=['gcd'],
+    package_data={'gcd': ['resources/*']},
+    scripts=['scripts/liftup', 'scripts/wacky']
 )
