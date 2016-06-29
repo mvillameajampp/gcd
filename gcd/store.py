@@ -8,6 +8,8 @@ import pickle
 import psycopg2
 import json as json_
 
+from math import log
+from itertools import combinations
 from unittest import TestCase
 from operator import attrgetter
 from psycopg2.pool import ThreadedConnectionPool
@@ -182,6 +184,28 @@ class PgTestCase(TestCase):
 
     def pool(self, **kwargs):
         return PgConnectionPool(dbname=self.db, **kwargs)
+
+
+def allot(seqs, base=None, capacity=None):
+    assert not (base and capacity)
+    if capacity is not None:
+        assert capacity >= 1
+        def quota(i):
+            mem = 1 - 1 / capacity
+            return (1 - mem**i) / (1 - mem)
+    else:
+        assert base >= 1
+        def quota(i):
+            return log(i, base or 1.5) + 1
+    def score(seqs):
+        return sum((quota(new_seq - s) - i)**2 for i, s in enumerate(seqs, 1))
+    seqs = list(sorted(seqs, reverse=True))
+    if not seqs:
+        return 0, []
+    new_seq = seqs[0] + 1
+    num_seqs = min(len(seqs), round(quota(new_seq)))
+    keep_seqs = min((c for c in combinations(seqs, num_seqs)), key=score)
+    return new_seq, [seq for seq in seqs if seq not in keep_seqs]
 
 
 def _execute(attr, sql, args, cursor, values):
