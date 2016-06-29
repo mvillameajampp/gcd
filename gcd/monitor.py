@@ -34,7 +34,7 @@ class Statistics:
         x *= w
         self.n = m * self.n + w
         self._sum = m * self._sum + x
-        self._sqsum = m * self._sqsum + x*x
+        self._sqsum = m * self._sqsum + x * x
         self.min = min(m * self.min, x)
         self.max = max(m * self.max, x)
         return self

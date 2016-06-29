@@ -147,4 +147,5 @@ class Command:
         is_main = sys._getframe().f_back.f_globals['__name__'] == '__main__'
         return (is_main and deco(fun)) if fun else deco
 
+
 cmd = Command()

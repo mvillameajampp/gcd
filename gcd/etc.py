@@ -50,7 +50,7 @@ def snippet(text, length):
     if len(text) <= length:
         return text
     else:
-        return text[:length-3] + '...'
+        return text[:length - 3] + '...'
 
 
 def as_many(obj, as_type=None):
