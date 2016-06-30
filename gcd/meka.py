@@ -32,6 +32,8 @@ def rule(fun):
             mtimes[output] = path.getmtime(output)
             memo[output] = code, args, kwargs, mtimes
     return wrapper
+
+
 _memo = '.%s.memo' % path.splitext(path.basename(sys.argv[0]))[0]
 
 
@@ -145,8 +147,8 @@ def pylint(omit=[]):
     def lint():
         'Run flake8 linter'
         yield
-        sh("shopt -s globstar; flake8 -v --exclude '%s' **/*.py || true" %
-           ','.join(as_many(omit)))
+        sh("shopt -s globstar; flake8 -v --exclude '%s' --ignore E306 "
+           "**/*.py || true" % ','.join(as_many(omit)))
     return lint
 
 

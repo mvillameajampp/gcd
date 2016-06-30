@@ -15,8 +15,8 @@ class TestTimer(TestCase):
         timer = Timer(period=5)
         for current_time, is_time in [
                 (10, False), (14, False),   # First period.
-                (15, True),  (16, False),   # Second period.
-                (25, True),  (27, False),   # Third period.
+                (15, True), (16, False),   # Second period.
+                (25, True), (27, False),   # Third period.
                 (30, True)]:                # Last period.
             time.return_value = current_time
             self.assertEqual(timer.is_time, is_time)
