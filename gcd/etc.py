@@ -77,7 +77,6 @@ def as_file(file_or_path, *args, **kwargs):
 
 def load_pyconfig(file_or_path, config=None):
     config = config or Config()
-    config.Config = Config
     with as_file(file_or_path) as cfg_file:
         exec(cfg_file.read(), config)
     return config
