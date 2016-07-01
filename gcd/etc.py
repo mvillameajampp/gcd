@@ -1,5 +1,6 @@
 import operator
 import logging
+import ctypes as ct
 
 from itertools import islice, chain
 from functools import reduce, lru_cache
@@ -109,6 +110,15 @@ def template(file_or_path_or_str, **kwargs):
             return environment.from_string(tmpl_file.read())
     except FileNotFoundError:
         return environment.from_string(file_or_path_or_str)
+
+
+def c_array(*args):
+    if type(args[1]) is int:
+        ptr, size = args
+        return (ptr._type_ * size).from_address(ct.addressof(ptr.contents))
+    else:
+        c_type, buf = args
+        return (c_type * (len(buf) // ct.sizeof(c_type))).from_buffer_copy(buf)
 
 
 class Bundle(dict):
