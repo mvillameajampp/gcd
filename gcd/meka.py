@@ -48,6 +48,8 @@ def echo(msg):
         return
     try:
         width = int(_sh('stty size|').split()[1])
+        if width <= 0:
+            width = 80
     except:
         width = 80
     lines = textwrap.wrap(msg, width=width)
