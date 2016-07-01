@@ -46,11 +46,12 @@ def meka(chdir=True):
 def echo(msg):
     if cmd.args.quiet:
         return
+    width = 0
     try:
         width = int(_sh('stty size|').split()[1])
-        if width <= 0:
-            width = 80
-    except:
+    except:  # Not in tty.
+        pass
+    if width <= 0:  # Inside ansible width == -1, why?
         width = 80
     lines = textwrap.wrap(msg, width=width)
     bar = '~' * max(len(l) for l in lines)
