@@ -3,7 +3,7 @@ import queue
 from unittest import TestCase, main
 from itertools import islice
 
-from gcd.work import sortedq
+from gcd.work import sorted_queue
 
 
 class TestSortedQueue(TestCase):
@@ -14,7 +14,7 @@ class TestSortedQueue(TestCase):
         q = queue.Queue()
         for msg in msgs:
             q.put(msg)
-        sq = sortedq(q, max_ooo=2)
+        sq = sorted_queue(q, hwm=2)
         msgs.remove((3, 'd'))
         self.assertEqual(list(islice(sq, 6)), sorted(msgs))
 

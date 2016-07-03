@@ -6,6 +6,7 @@ import threading as mt
 from math import inf
 from queue import Empty, Queue
 
+from gcd.etc import identity
 from gcd.chronos import as_timer, span
 
 
@@ -102,8 +103,8 @@ def dequeue(queue, at_least=1):
         pass
 
 
-def sortedq(queue, log_period=span(minutes=5), max_ooo=10000):
-    if max_ooo < inf and log_period:
+def sorted_queue(queue, item=identity, log_period=span(minutes=5), hwm=10000):
+    if hwm < inf and log_period:
         def log():
             nonlocal seen, lost
             if lost:
@@ -114,15 +115,15 @@ def sortedq(queue, log_period=span(minutes=5), max_ooo=10000):
     max_seq = -1
     out_seq = seen = lost = 0
     while True:
-        seq, data = msg = queue.get()
+        seq, data = item(queue.get())
         seen += 1
         if seq < out_seq:
             continue
         max_seq = max(max_seq, seq)
-        heapq.heappush(heap, msg)
+        heapq.heappush(heap, (seq, data))
         while heap:
             seq, data = heap[0]
-            if seq > out_seq and max_seq - seq < max_ooo:
+            if seq > out_seq and max_seq - seq < hwm:
                 break
             lost += seq - out_seq
             out_seq = seq + 1
