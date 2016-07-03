@@ -6,7 +6,7 @@ import threading as mt
 from math import inf
 from queue import Empty, Queue
 
-from gcd.etc import identity
+from gcd.etc import identity, repeat
 from gcd.chronos import as_timer, span
 
 
@@ -121,6 +121,10 @@ def dequeue(queue, at_least=1):
             yield queue.get_nowait()
     except Empty:
         pass
+
+
+def iter_queue(queue, stop_at=None):
+    return repeat(queue.get, stop_at=stop_at)
 
 
 def sorted_queue(queue, item=identity, log_period=span(minutes=5), hwm=10000):

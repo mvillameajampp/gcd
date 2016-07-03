@@ -30,6 +30,14 @@ def product(iterable, start=1):
     return reduce(operator.mul, iterable, start)
 
 
+def repeat(func, *args, stop_at=StopIteration, **kwargs):
+    while True:
+        obj = func(*args, **kwargs)
+        if obj == stop_at:
+            return
+        yield obj
+
+
 def chunks(iterable, size):
     iterator = iter(iterable)
     while True:
