@@ -35,6 +35,23 @@ class Thread(mt.Thread):
         return self
 
 
+class Cluster:
+
+    def __init__(self, nworkers, target, *args, new_process=True, **kwargs):
+        worker_class = Process if new_process else Thread
+        self.workers = [worker_class(target, i, *args, **kwargs)
+                        for i in range(nworkers)]
+
+    def start(self):
+        for worker in self.workers:
+            worker.start()
+        return self
+
+    def join(self):
+        for worker in self.workers:
+            worker.join()
+
+
 class Task:
 
     def __init__(self, period_or_timer, callback, *args, new_process=False,
@@ -46,6 +63,9 @@ class Task:
     def start(self):
         self.worker.start()
         return self
+
+    def join(self):
+        self.worker.join()
 
     def _run(self, timer, callback, args, kwargs):
         while True:
