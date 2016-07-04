@@ -167,7 +167,7 @@ class StoreHandler(logging.Handler):
             traceback.print_exc()
 
 
-class PgJsonLogStore(PgStore):
+class JsonLogStore(PgStore):
 
     def __init__(self, conn_or_pool=None, table='logs', create=True):
         self._table = table
