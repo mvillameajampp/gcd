@@ -12,6 +12,10 @@ from gcd.chronos import as_timer, span
 
 logger = logging.getLogger(__name__)
 
+default_hwm = 10000
+
+default_throttle = 0.5
+
 
 class Process(mp.Process):
 
@@ -79,37 +83,35 @@ class Task:
 
 class Batcher(Task):
 
-    def __init__(self, period, handle, *args, hwm=10000, shared=False,
-                 new_process=False, min_batch=1, **kwargs):
+    def __init__(self, handle, *args, hwm=None, throttle=None, shared=False,
+                 new_process=False, **kwargs):
         self._queue = _queue(hwm, shared, new_process)
-        super().__init__(period, self._callback, handle, min_batch,
+        super().__init__(throttle or default_throttle, self._callback, handle,
                          args, kwargs, new_process=new_process)
 
     def add(self, obj):
         self._queue.put(obj)
 
-    def _callback(self, handle, min_batch, args, kwargs):
-        handle(dequeue(self._queue, min_batch), *args, **kwargs)
+    def _callback(self, handle, args, kwargs):
+        handle(dequeue(self._queue), *args, **kwargs)
 
 
 class Streamer(Task):
 
-    def __init__(self, period, chunk, *args, hwm=10000, shared=False,
+    def __init__(self, load, *args, hwm=None, throttle=None, shared=False,
                  new_process=False, **kwargs):
         self._queue = _queue(hwm, shared, new_process)
-        super().__init__(period, self._callback, chunk,
+        super().__init__(throttle or default_throttle, self._callback, load,
                          args, kwargs, new_process=new_process)
 
     def get(self):
         return self._queue.get()
 
-    __next__ = get
-
     def __iter__(self):
-        return self
+        return repeat(self.get)
 
-    def _callback(self, chunk, args, kwargs):
-        for obj in chunk(*args, **kwargs):
+    def _callback(self, load, args, kwargs):
+        for obj in load(*args, **kwargs):
             self._queue.put(obj)
 
 
@@ -158,4 +160,4 @@ def sorted_queue(queue, item=identity, log_period=span(minutes=5), hwm=10000):
 def _queue(hwm, shared, new_process):
     assert shared or not new_process
     queue_class = mp.Queue if (shared or new_process) else Queue
-    return queue_class(hwm)
+    return queue_class(hwm or default_hwm)
