@@ -63,7 +63,7 @@ class TestWorkers(TestCase):
         with self.assertRaises(queue.Empty):
             streamer.get(block=False)
         time.sleep(0.11)
-        self.assertEqual(streamer.get(block=False), 5)
+        self.assertEqual(next(iter(streamer)), 5)
 
 
 class TestQueues(TestCase):
@@ -87,7 +87,8 @@ class TestQueues(TestCase):
         q = queue.Queue()
         for i in range(10):
             q.put(i)
-        self.assertEqual(list(iter_queue(q, 5)), [0, 1, 2, 3, 4])
+        self.assertEqual(list(iter_queue(q, until=5)), [0, 1, 2, 3, 4])
+        self.assertEqual(list(iter_queue(q, times=3)), [6, 7, 8])
 
     def test_sorted_queue(self):
         msgs = [(2, 'c'), (0, 'a'), (1, 'b'), (6, 'g'),

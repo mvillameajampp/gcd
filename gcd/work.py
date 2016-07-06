@@ -7,7 +7,7 @@ import threading as mt
 from math import inf
 from queue import Empty, Queue
 
-from gcd.etc import identity, repeat
+from gcd.etc import identity, repeat_call
 from gcd.chronos import as_timer, span
 
 
@@ -128,7 +128,7 @@ class Streamer(Worker):
         return self._queue.get(*args, **kwargs)
 
     def __iter__(self):
-        return repeat(self.get)
+        return repeat_call(self.get)
 
     def _run(self, batch_size, batch_wait, load_batch, args, kwargs):
         obj = None
@@ -162,8 +162,8 @@ def dequeue(queue, n=None, wait=None):
             pass
 
 
-def iter_queue(queue, stop_at=None):
-    return repeat(queue.get, stop_at=stop_at)
+def iter_queue(queue, until=None, times=None):
+    return repeat_call(queue.get, until=until, times=times)
 
 
 def sorted_queue(queue, item=identity, log_period=span(minutes=5),
