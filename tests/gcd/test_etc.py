@@ -2,7 +2,7 @@ import logging
 
 from unittest import TestCase, main
 
-from gcd.etc import product, chunks, as_many, retry_on, Bundle
+from gcd.etc import product, repeat_call, chunks, as_many, retry_on, Bundle
 
 
 class TestFunctions(TestCase):
@@ -10,6 +10,17 @@ class TestFunctions(TestCase):
     def test_product(self):
         self.assertEqual(product([2, 5]), 10)
         self.assertEqual(product([2, 5], start=2), 20)
+
+    def test_repeat(self):
+        nums = [0] * 10
+        rep = repeat_call(lambda x: nums.pop() + x if nums else -1, 1,
+                          until=-1)
+        self.assertEqual(list(rep), [1] * 10)
+
+        nums = [0] * 10
+        rep = repeat_call(lambda x: nums.pop() + x if nums else -1, 1,
+                          times=5)
+        self.assertEqual(list(rep), [1] * 5)
 
     def test_chunks(self):
         self.assertEqual(list(map(list, chunks([1, 2, 3, 4, 5], 2))),

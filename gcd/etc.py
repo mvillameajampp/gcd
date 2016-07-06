@@ -31,10 +31,12 @@ def product(iterable, start=1):
     return reduce(operator.mul, iterable, start)
 
 
-def repeat(func, *args, stop_at=StopIteration, **kwargs):
-    while True:
+def repeat_call(func, *args, until=StopIteration, times=None, **kwargs):
+    for i in count(0):
+        if i == times:
+            return
         obj = func(*args, **kwargs)
-        if obj == stop_at:
+        if obj == until:
             return
         yield obj
 
