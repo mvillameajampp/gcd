@@ -1,11 +1,8 @@
 import time
-import queue
 import logging
 
-from threading import Thread
-
 from gcd.etc import Bundle
-from gcd.work import dequeue, Task
+from gcd.work import queue, dequeue, Task, Thread
 
 
 NA = object()
@@ -55,10 +52,10 @@ class Cache:
 
 class AsynCache(Cache):
 
-    def __init__(self, tts=None, ttl=None, cache=None, hwm=10000):
-        Cache.__init__(self, tts, ttl, cache)
-        self._queue = queue.Queue(hwm)
-        Thread(target=self._process_queue, daemon=True).start()
+    def __init__(self, tts=None, ttl=None, cache=None, queue_size=None):
+        super().__init__(tts, ttl, cache)
+        self._queue = queue(queue_size)
+        Thread(self._process_queue, daemon=True).start()
 
     def _get(self, key):
         self._queue.put(key)
@@ -72,7 +69,9 @@ class AsynCache(Cache):
 
     def _process_queue(self):
         while True:
-            keys = set(dequeue(self._queue))
+            keys = set()
+            keys.add(self._queue.get())
+            keys.update(dequeue(self._queue, wait=0))
             if not keys:
                 continue
             try:

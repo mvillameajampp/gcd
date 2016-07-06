@@ -97,7 +97,7 @@ class Batcher(Worker):
         batch_size = batch_size or default_batch_size
         batch_wait = batch_wait or default_batch_wait
         queue_size = queue_size or (batch_size + default_queue_size)
-        self._queue = _queue(queue, queue_size, new_process)
+        self._queue = queue or globals()['queue'](queue_size, new_process)
         super().__init__(self._run, batch_size, batch_wait, handle_batch,
                          args, kwargs, new_process=new_process)
 
@@ -120,7 +120,7 @@ class Streamer(Worker):
         batch_size = batch_size or default_batch_size
         batch_wait = batch_wait or default_batch_wait
         queue_size = queue_size or (batch_size + default_queue_size)
-        self._queue = _queue(queue, queue_size, new_process)
+        self._queue = queue or globals()['queue'](queue_size, new_process)
         super().__init__(self._run, batch_size, batch_wait, load_batch,
                          args, kwargs, new_process=new_process)
 
@@ -141,6 +141,11 @@ class Streamer(Worker):
                     time.sleep(batch_wait)
             except Exception:
                 logger.exception('Error loading batch')
+
+
+def queue(queue_size=None, shared=False):
+    queue_class = mp.Queue if shared else Queue
+    return queue_class(queue_size or default_queue_size)
 
 
 def dequeue(queue, n=None, wait=None):
@@ -193,11 +198,3 @@ def sorted_queue(queue, item=identity, log_period=span(minutes=5),
             out_seq = seq + 1
             heapq.heappop(heap)
             yield seq, data
-
-
-def _queue(queue, queue_size, new_process):
-    assert not (queue and (queue_size or new_process))
-    if not queue:
-        queue_class = mp.Queue if new_process else Queue
-        queue = queue_class(queue_size or default_queue_size)
-    return queue

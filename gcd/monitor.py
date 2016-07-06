@@ -154,7 +154,7 @@ class StoreHandler(logging.Handler):
 
     def __init__(self, formatter=None, store=None, period=5):
         logging.Handler.__init__(self)
-        store = store or PgJsonLogStore()
+        store = store or JsonLogStore()
         if not isinstance(formatter, logging.Formatter):
             formatter = JsonFormatter(formatter)
         self.setFormatter(formatter)
