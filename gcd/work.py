@@ -1,3 +1,4 @@
+import time
 import logging
 import heapq
 import multiprocessing as mp
@@ -12,38 +13,54 @@ from gcd.chronos import as_timer, span
 
 logger = logging.getLogger(__name__)
 
-default_hwm = 10000
+default_queue_size = 1000
 
-default_throttle = 0.5
+default_batch_size = 1000
+
+default_batch_wait = 1
 
 
 class Process(mp.Process):
 
     def __init__(self, target, *args, daemon=True, **kwargs):
-        mp.Process.__init__(self, target=target, daemon=daemon, args=args,
-                            kwargs=kwargs)
+        super().__init__(target=target, daemon=daemon, args=args,
+                         kwargs=kwargs)
 
     def start(self):
-        mp.Process.start(self)
+        super().start()
         return self
 
 
 class Thread(mt.Thread):
 
     def __init__(self, target, *args, daemon=True, **kwargs):
-        mt.Thread.__init__(self, target=target, daemon=daemon, args=args,
-                           kwargs=kwargs)
+        super().__init__(target=target, daemon=daemon, args=args,
+                         kwargs=kwargs)
 
     def start(self):
-        mt.Thread.start(self)
+        super().start()
         return self
+
+
+class Worker:
+
+    def __init__(self, *args, new_process=False, **kwargs):
+        worker_class = Process if new_process else Thread
+        self.worker = worker_class(*args, *kwargs)
+
+    def start(self):
+        self.worker.start()
+        return self
+
+    def join(self):
+        self.worker.join()
 
 
 class Cluster:
 
     def __init__(self, nworkers, target, *args, new_process=True, **kwargs):
-        worker_class = Process if new_process else Thread
-        self.workers = [worker_class(target, i, *args, **kwargs)
+        self.workers = [Worker(target, i, *args, new_process=new_process,
+                               **kwargs)
                         for i in range(nworkers)]
 
     def start(self):
@@ -56,81 +73,102 @@ class Cluster:
             worker.join()
 
 
-class Task:
+class Task(Worker):
 
     def __init__(self, period_or_timer, callback, *args, new_process=False,
                  **kwargs):
         timer = as_timer(period_or_timer)
-        worker_class = Process if new_process else Thread
-        self.worker = worker_class(self._run, timer, callback, args, kwargs)
-
-    def start(self):
-        self.worker.start()
-        return self
-
-    def join(self):
-        self.worker.join()
+        super().__init__(self._run, timer, callback, args, kwargs,
+                         new_process=new_process)
 
     def _run(self, timer, callback, args, kwargs):
         while True:
-            timer.wait()
             try:
+                timer.wait()
                 callback(*args, **kwargs)
             except Exception:
-                logger.exception('Error executing task %s',
-                                 self.__class__.__name__)
+                logger.exception('Error executing task')
 
 
-class Batcher(Task):
+class Batcher(Worker):
 
-    def __init__(self, handle, *args, hwm=None, throttle=None, shared=False,
-                 new_process=False, **kwargs):
-        self._queue = _queue(hwm, shared, new_process)
-        super().__init__(throttle or default_throttle, self._callback, handle,
+    def __init__(self, handle_batch, *args, batch_size=None, batch_wait=None,
+                 queue_size=None, queue=None, new_process=False, **kwargs):
+        batch_size = batch_size or default_batch_size
+        batch_wait = batch_wait or default_batch_wait
+        queue_size = queue_size or (batch_size + default_queue_size)
+        self._queue = _queue(queue, queue_size, new_process)
+        super().__init__(self._run, batch_size, batch_wait, handle_batch,
                          args, kwargs, new_process=new_process)
 
-    def add(self, obj):
-        self._queue.put(obj)
+    def put(self, obj, *args, **kwargs):
+        self._queue.put(obj, *args, **kwargs)
 
-    def _callback(self, handle, args, kwargs):
-        handle(dequeue(self._queue), *args, **kwargs)
+    def _run(self, batch_size, batch_wait, handle_batch, args, kwargs):
+        while True:
+            try:
+                batch = list(dequeue(self._queue, batch_size, batch_wait))
+                handle_batch(batch, *args, **kwargs)
+            except Exception:
+                logger.exception('Error handling batch')
 
 
-class Streamer(Task):
+class Streamer(Worker):
 
-    def __init__(self, load, *args, hwm=None, throttle=None, shared=False,
-                 new_process=False, **kwargs):
-        self._queue = _queue(hwm, shared, new_process)
-        super().__init__(throttle or default_throttle, self._callback, load,
+    def __init__(self, load_batch, *args, batch_size=None, batch_wait=None,
+                 queue_size=None, queue=None, new_process=False, **kwargs):
+        batch_size = batch_size or default_batch_size
+        batch_wait = batch_wait or default_batch_wait
+        queue_size = queue_size or (batch_size + default_queue_size)
+        self._queue = _queue(queue, queue_size, new_process)
+        super().__init__(self._run, batch_size, batch_wait, load_batch,
                          args, kwargs, new_process=new_process)
 
-    def get(self):
-        return self._queue.get()
+    def get(self, *args, **kwargs):
+        return self._queue.get(*args, **kwargs)
 
     def __iter__(self):
         return repeat(self.get)
 
-    def _callback(self, load, args, kwargs):
-        for obj in load(*args, **kwargs):
-            self._queue.put(obj)
+    def _run(self, batch_size, batch_wait, load_batch, args, kwargs):
+        obj = None
+        while True:
+            try:
+                batch = load_batch(obj, batch_size, *args, **kwargs)
+                for i, obj in enumerate(batch, 1):
+                    self._queue.put(obj)
+                if i < batch_size:
+                    time.sleep(batch_wait)
+            except Exception:
+                logger.exception('Error loading batch')
 
 
-def dequeue(queue, at_least=1):
-    for _ in range(at_least):
-        yield queue.get()
-    try:
-        for _ in range(queue.qsize() - at_least):
-            yield queue.get_nowait()
-    except Empty:
-        pass
+def dequeue(queue, n=None, wait=None):
+    assert n is not None or wait is not None
+    n = n or inf
+    wait_until = wait and time.time() + wait
+    while n > 0:
+        try:
+            timeout = wait and max(0, wait_until - time.time())
+            yield queue.get(timeout=timeout)
+            n -= 1
+        except Empty:
+            return
+        try:
+            while n > 0:  # Avoid the syscall to time() if possible.
+                yield queue.get_nowait()
+                n -= 1
+        except Empty:
+            pass
 
 
 def iter_queue(queue, stop_at=None):
     return repeat(queue.get, stop_at=stop_at)
 
 
-def sorted_queue(queue, item=identity, log_period=span(minutes=5), hwm=10000):
-    if hwm < inf and log_period:
+def sorted_queue(queue, item=identity, log_period=span(minutes=5),
+                 max_ooo=10000):
+    if max_ooo < inf and log_period:
         def log():
             nonlocal seen, lost
             if lost:
@@ -149,7 +187,7 @@ def sorted_queue(queue, item=identity, log_period=span(minutes=5), hwm=10000):
         heapq.heappush(heap, (seq, data))
         while heap:
             seq, data = heap[0]
-            if seq > out_seq and max_seq - seq < hwm:
+            if seq > out_seq and max_seq - seq < max_ooo:
                 break
             lost += seq - out_seq
             out_seq = seq + 1
@@ -157,7 +195,9 @@ def sorted_queue(queue, item=identity, log_period=span(minutes=5), hwm=10000):
             yield seq, data
 
 
-def _queue(hwm, shared, new_process):
-    assert shared or not new_process
-    queue_class = mp.Queue if (shared or new_process) else Queue
-    return queue_class(hwm or default_hwm)
+def _queue(queue, queue_size, new_process):
+    assert not (queue and (queue_size or new_process))
+    if not queue:
+        queue_class = mp.Queue if new_process else Queue
+        queue = queue_class(queue_size or default_queue_size)
+    return queue
