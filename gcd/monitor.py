@@ -8,6 +8,7 @@ import multiprocessing as mp
 from collections import defaultdict
 from contextlib import contextmanager
 
+from gcd.etc import whoami
 from gcd.work import Batcher
 from gcd.store import PgStore, execute
 from gcd.chronos import as_memory
@@ -183,3 +184,8 @@ class JsonLogStore(PgStore):
     def _create(self):
         with self.transaction():
             execute('CREATE TABLE IF NOT EXISTS %s (log jsonb)' % self._table)
+
+
+def my_logger(*extra):
+    return logging.getLogger(whoami(*extra, 2))
+

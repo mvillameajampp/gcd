@@ -1,3 +1,4 @@
+import inspect
 import operator
 import logging
 import ctypes as ct
@@ -11,17 +12,27 @@ from contextlib import contextmanager
 logger = logging.getLogger(__name__)
 
 
+def whoami(*extra, depth=1):
+    frame = inspect.stack()[depth].frame
+    qualname = frame.f_locals.get('__qualname__')
+    if qualname:
+        names = [frame.f_globals['__name__'], qualname]
+    else:
+        names = [frame.f_globals['__name__']]
+    names.extend(n if type(n) is str else n.__name__ for n in extra)
+    return '.'.join(names)
+
+
 class Sentinel(str):
 
-    def __new__(cls, *names):
-        return super().__new__(cls, '.'.join(
-            n if type(n) is str else n.__qualname__ for n in names))
+    def __new__(cls, *extra):
+        return super().__new__(cls, whoami(*extra, depth=2))
 
     def __eq__(self, other):
         return type(other) is Sentinel and str.__eq__(self, other)
 
 
-default = Sentinel(__name__, 'default')
+default = Sentinel('default')
 
 
 class Bundle(dict):
@@ -91,7 +102,7 @@ def repeat_call(func, *args, until=default, times=None, **kwargs):
         yield obj
 
 
-repeat_call.stop = Sentinel(__name__, repeat_call, 'stop')
+repeat_call.stop = Sentinel(repeat_call, 'stop')
 
 
 def chunks(iterable, size):

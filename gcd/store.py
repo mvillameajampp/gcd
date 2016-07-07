@@ -17,6 +17,7 @@ from psycopg2.pool import ThreadedConnectionPool
 from gcd.etc import identity, attrsetter, snippet
 from gcd.nix import sh
 
+
 logger = logging.getLogger(__name__)
 
 

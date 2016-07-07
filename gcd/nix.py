@@ -7,6 +7,8 @@ import argparse
 
 from contextlib import contextmanager
 
+from gcd.etc import whoami
+
 
 env = os.environ
 path = os.path
@@ -128,7 +130,7 @@ class Command:
             self._cur = self._top
 
     def run(self, fun=None, *, doc=None):
-        if not sys._getframe().f_back.f_globals['__name__'] == '__main__':
+        if not whoami(depth=2) == '__main__':
             return
         self._top.description = doc or fun.__doc__
         if fun:

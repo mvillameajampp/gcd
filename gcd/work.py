@@ -7,7 +7,7 @@ import threading as mt
 from math import inf
 from queue import Empty, Queue
 
-from gcd.etc import identity, repeat_call, Bundle
+from gcd.etc import identity, repeat_call, Bundle, Sentinel
 from gcd.chronos import as_timer, span
 
 
@@ -17,7 +17,7 @@ default_queue_size = 1000
 
 default_batch_size = 1000
 
-default_batch_wait = 1
+default_batch_wait = 5
 
 
 class Process(mp.Process):
@@ -116,6 +116,8 @@ class Batcher(Worker):
 
 class Streamer(Worker):
 
+    _stop = Sentinel('stop')
+
     def __init__(self, load_batch, *args, batch_size=None, batch_wait=None,
                  queue_size=None, queue=None, new_process=False, **kwargs):
         batch_size = batch_size or default_batch_size
@@ -129,7 +131,7 @@ class Streamer(Worker):
         return self._queue.get(*args, **kwargs)
 
     def __iter__(self):
-        return repeat_call(self.get)
+        return repeat_call(self.get, until=self._stop)
 
     def _run(self, batch_size, batch_wait, load_batch, args, kwargs):
         info = Bundle(batch_size=batch_size, last_full=True, last_obj=None)
@@ -138,7 +140,7 @@ class Streamer(Worker):
             try:
                 batch = load_batch(info, *args, **kwargs)
                 if batch is None:
-                    self._queue.put(repeat_call.stop)
+                    self._queue.put(self._stop)
                     return
                 size = 0
                 for obj in batch:
