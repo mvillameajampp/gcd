@@ -7,7 +7,7 @@ import threading as mt
 from math import inf
 from queue import Empty, Queue
 
-from gcd.etc import identity, repeat_call
+from gcd.etc import identity, repeat_call, Bundle
 from gcd.chronos import as_timer, span
 
 
@@ -108,7 +108,8 @@ class Batcher(Worker):
         while True:
             try:
                 batch = list(dequeue(self._queue, batch_size, batch_wait))
-                handle_batch(batch, *args, **kwargs)
+                if batch:
+                    handle_batch(batch, *args, **kwargs)
             except Exception:
                 logger.exception('Error handling batch')
 
@@ -131,13 +132,20 @@ class Streamer(Worker):
         return repeat_call(self.get)
 
     def _run(self, batch_size, batch_wait, load_batch, args, kwargs):
+        info = Bundle(batch_size=batch_size, last_full=True, last_obj=None)
         obj = None
         while True:
             try:
-                batch = load_batch(obj, batch_size, *args, **kwargs)
-                for i, obj in enumerate(batch, 1):
+                batch = load_batch(info, *args, **kwargs)
+                if batch is None:
+                    self._queue.put(repeat_call.stop)
+                    return
+                size = 0
+                for obj in batch:
                     self._queue.put(obj)
-                if i < batch_size:
+                    size += 1
+                info.update(last_obj=obj, last_full=size == batch_size)
+                if size < batch_size:
                     time.sleep(batch_wait)
             except Exception:
                 logger.exception('Error loading batch')

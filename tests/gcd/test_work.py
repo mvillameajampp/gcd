@@ -40,13 +40,15 @@ class TestWorkers(TestCase):
         self.assertEqual(batches, [[1], [2, 3], [4]])
 
     def test_streamer(self):
-        def load(last_obj, batch_size):
+        def load(info):
             nonlocal i
             if i == 3:
                 time.sleep(1000000)
             i += 1
-            self.assertEqual(last_obj, None if i == 0 else batches[i - 1][-1])
-            self.assertEqual(batch_size, 2)
+            last = None if i == 0 else batches[i - 1]
+            self.assertEqual(info.last_full, not last or len(last) == 2)
+            self.assertEqual(info.last_obj, last and last[-1])
+            self.assertEqual(info.batch_size, 2)
             return batches[i]
         i = -1
         batches = [1], [2, 3], [4], [5]
