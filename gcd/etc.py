@@ -18,7 +18,7 @@ class Sentinel(str):
             n if type(n) is str else n.__qualname__ for n in names))
 
     def __eq__(self, other):
-        return type(other) is Sentinel and self == other
+        return type(other) is Sentinel and str.__eq__(self, other)
 
 
 default = Sentinel(__name__, 'default')
