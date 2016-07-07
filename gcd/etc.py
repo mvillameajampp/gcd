@@ -11,6 +11,54 @@ from contextlib import contextmanager
 logger = logging.getLogger(__name__)
 
 
+class Sentinel(str):
+
+    def __new__(cls, *names):
+        return super().__new__(cls, '.'.join(
+            n if type(n) is str else n.__qualname__ for n in names))
+
+    def __eq__(self, other):
+        return type(other) is Sentinel and self == other
+
+
+default = Sentinel(__name__, 'default')
+
+
+class Bundle(dict):
+
+    __slots__ = ()
+
+    def __getattr__(self, name):
+        return self[name]
+
+    def __setattr__(self, name, value):
+        self[name] = value
+
+    def __hasattr__(self, name):
+        return name in self
+
+
+class Config(Bundle):
+    pass
+
+
+class PositionalAttribute:
+
+    def install(attrs, scope, vals_attr):
+        for index, attr in enumerate(attrs):
+            scope[attr] = PositionalAttribute(index, vals_attr)
+
+    def __init__(self, index, vals_attr):
+        self.index = index
+        self.vals_attr = vals_attr
+
+    def __get__(self, obj, type=None):
+        return getattr(obj, self.vals_attr)[self.index]
+
+    def __set__(self, obj, val):
+        getattr(obj, self.vals_attr)[self.index] = val
+
+
 def identity(x):
     return x
 
@@ -31,7 +79,9 @@ def product(iterable, start=1):
     return reduce(operator.mul, iterable, start)
 
 
-def repeat_call(func, *args, until=StopIteration, times=None, **kwargs):
+def repeat_call(func, *args, until=default, times=None, **kwargs):
+    if until == default:
+        until = repeat_call.stop
     for i in count(0):
         if i == times:
             return
@@ -39,6 +89,9 @@ def repeat_call(func, *args, until=StopIteration, times=None, **kwargs):
         if obj == until:
             return
         yield obj
+
+
+repeat_call.stop = Sentinel(__name__, repeat_call, 'stop')
 
 
 def chunks(iterable, size):
@@ -137,38 +190,3 @@ def c_array(*args):
     else:
         c_type, buf = args
         return (c_type * (len(buf) // ct.sizeof(c_type))).from_buffer_copy(buf)
-
-
-class Bundle(dict):
-
-    __slots__ = ()
-
-    def __getattr__(self, name):
-        return self[name]
-
-    def __setattr__(self, name, value):
-        self[name] = value
-
-    def __hasattr__(self, name):
-        return name in self
-
-
-class Config(Bundle):
-    pass
-
-
-class PositionalAttribute:
-
-    def install(attrs, scope, vals_attr):
-        for index, attr in enumerate(attrs):
-            scope[attr] = PositionalAttribute(index, vals_attr)
-
-    def __init__(self, index, vals_attr):
-        self.index = index
-        self.vals_attr = vals_attr
-
-    def __get__(self, obj, type=None):
-        return getattr(obj, self.vals_attr)[self.index]
-
-    def __set__(self, obj, val):
-        getattr(obj, self.vals_attr)[self.index] = val
