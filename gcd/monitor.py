@@ -188,4 +188,3 @@ class JsonLogStore(PgStore):
 
 def my_logger(*extra):
     return logging.getLogger(whoami(*extra, 2))
-

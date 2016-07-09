@@ -1,4 +1,3 @@
-import time
 import logging
 import heapq
 import multiprocessing as mp
@@ -7,17 +6,15 @@ import threading as mt
 from math import inf
 from queue import Empty, Queue
 
-from gcd.etc import identity, repeat_call, Bundle, Sentinel
+from gcd.etc import identity, repeat_call, Sentinel
 from gcd.chronos import as_timer, span
 
 
 logger = logging.getLogger(__name__)
 
-default_queue_size = 1000
+default_hwm = 5000
 
-default_batch_size = 1000
-
-default_batch_wait = 5
+default_period = 1
 
 
 class Process(mp.Process):
@@ -75,6 +72,9 @@ class Cluster:
 
 class Task(Worker):
 
+    class Stop(Exception):
+        pass
+
     def __init__(self, period_or_timer, callback, *args, new_process=False,
                  **kwargs):
         timer = as_timer(period_or_timer)
@@ -86,95 +86,65 @@ class Task(Worker):
             try:
                 timer.wait()
                 callback(*args, **kwargs)
+            except Task.Stop:
+                return
             except Exception:
                 logger.exception('Error executing task')
 
 
-class Batcher(Worker):
+class Batcher(Task):
 
-    def __init__(self, handle_batch, *args, batch_size=None, batch_wait=None,
-                 queue_size=None, queue=None, new_process=False, **kwargs):
-        batch_size = batch_size or default_batch_size
-        batch_wait = batch_wait or default_batch_wait
-        queue_size = queue_size or (batch_size + default_queue_size)
-        self._queue = queue or globals()['queue'](queue_size, new_process)
-        super().__init__(self._run, batch_size, batch_wait, handle_batch,
-                         args, kwargs, new_process=new_process)
+    def __init__(self, handle_batch, *args, hwm=None, period=None, queue=None,
+                 new_process=False, **kwargs):
+        self._queue = queue or new_queue(hwm, new_process)
+        super().__init__(period or default_period, self._callback,
+                         handle_batch, args, kwargs, new_process=new_process)
 
     def put(self, obj, *args, **kwargs):
         self._queue.put(obj, *args, **kwargs)
 
-    def _run(self, batch_size, batch_wait, handle_batch, args, kwargs):
-        while True:
-            try:
-                batch = list(dequeue(self._queue, batch_size, batch_wait))
-                if batch:
-                    handle_batch(batch, *args, **kwargs)
-            except Exception:
-                logger.exception('Error handling batch')
+    def _callback(self, handle_batch, args, kwargs):
+        handle_batch(dequeue(self._queue, 1), *args, **kwargs)
 
 
-class Streamer(Worker):
+class Streamer(Task):
 
-    _stop = Sentinel('stop')
+    stop = Sentinel('stop')
 
-    def __init__(self, load_batch, *args, batch_size=None, batch_wait=None,
-                 queue_size=None, queue=None, new_process=False, **kwargs):
-        batch_size = batch_size or default_batch_size
-        batch_wait = batch_wait or default_batch_wait
-        queue_size = queue_size or (batch_size + default_queue_size)
-        self._queue = queue or globals()['queue'](queue_size, new_process)
-        super().__init__(self._run, batch_size, batch_wait, load_batch,
-                         args, kwargs, new_process=new_process)
+    def __init__(self, load_batch, *args, hwm=None, period=None,
+                 queue=None, new_process=False, **kwargs):
+        self._queue = queue or new_queue(hwm, new_process)
+        super().__init__(period or default_period, self._callback,
+                         load_batch, self._queue.maxsize, period, args, kwargs,
+                         new_process=new_process)
 
     def get(self, *args, **kwargs):
         return self._queue.get(*args, **kwargs)
 
     def __iter__(self):
-        return repeat_call(self.get, until=self._stop)
+        return repeat_call(self.get, until=self.stop)
 
-    def _run(self, batch_size, batch_wait, load_batch, args, kwargs):
-        info = Bundle(batch_size=batch_size, last_full=True, last_obj=None)
-        obj = None
-        while True:
-            try:
-                batch = load_batch(info, *args, **kwargs)
-                if batch is None:
-                    self._queue.put(self._stop)
-                    return
-                size = 0
-                for obj in batch:
-                    self._queue.put(obj)
-                    size += 1
-                info.update(last_obj=obj, last_full=size == batch_size)
-                if size < batch_size:
-                    time.sleep(batch_wait)
-            except Exception:
-                logger.exception('Error loading batch')
+    def _callback(self, load_batch, hwm, period, args, kwargs):
+        for obj in load_batch(hwm, period, *args, **kwargs):
+            self._queue.put(obj)
+            if obj is self.stop:
+                raise Task.Stop
 
 
-def queue(queue_size=None, shared=False):
+def new_queue(hwm=None, shared=False):
     queue_class = mp.Queue if shared else Queue
-    return queue_class(queue_size or default_queue_size)
+    return queue_class(hwm or default_hwm)
 
 
-def dequeue(queue, n=None, wait=None):
-    assert n is not None or wait is not None
-    n = n or inf
-    wait_until = wait and time.time() + wait
-    while n > 0:
-        try:
-            timeout = wait and max(0, wait_until - time.time())
-            yield queue.get(timeout=timeout)
-            n -= 1
-        except Empty:
-            return
-        try:
-            while n > 0:  # Avoid the syscall to time() if possible.
-                yield queue.get_nowait()
-                n -= 1
-        except Empty:
-            pass
+def dequeue(queue, at_least=0, at_most=None):
+    at_most = at_most or queue.qsize()
+    for _ in range(at_least):
+        yield queue.get()
+    try:
+        for _ in range(at_most - at_least):
+            yield queue.get_nowait()
+    except Empty:
+        pass
 
 
 def iter_queue(queue, until=None, times=None):

@@ -2,7 +2,7 @@ import time
 import logging
 
 from gcd.etc import Bundle
-from gcd.work import queue, dequeue, Task, Thread
+from gcd.work import new_queue, dequeue, Task, Thread
 
 
 NA = object()
@@ -52,9 +52,9 @@ class Cache:
 
 class AsynCache(Cache):
 
-    def __init__(self, tts=None, ttl=None, cache=None, queue_size=None):
+    def __init__(self, tts=None, ttl=None, cache=None, hwm=None):
         super().__init__(tts, ttl, cache)
-        self._queue = queue(queue_size)
+        self._queue = new_queue(hwm)
         Thread(self._process_queue, daemon=True).start()
 
     def _get(self, key):
@@ -69,11 +69,7 @@ class AsynCache(Cache):
 
     def _process_queue(self):
         while True:
-            keys = set()
-            keys.add(self._queue.get())
-            keys.update(dequeue(self._queue, wait=0))
-            if not keys:
-                continue
+            keys = set(dequeue(self._queue, 1))
             try:
                 vals = dict(self._get_batch(keys))
             except Exception:
