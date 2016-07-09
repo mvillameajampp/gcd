@@ -109,7 +109,7 @@ class Batcher(Task):
 
 class Streamer(Task):
 
-    stop = Sentinel('stop')
+    Stop = Sentinel('stop')
 
     def __init__(self, load_batch, *args, hwm=None, period=None,
                  queue=None, new_process=False, **kwargs):
@@ -122,12 +122,12 @@ class Streamer(Task):
         return self._queue.get(*args, **kwargs)
 
     def __iter__(self):
-        return repeat_call(self.get, until=self.stop)
+        return repeat_call(self.get, until=self.Stop)
 
     def _callback(self, load_batch, hwm, period, args, kwargs):
         for obj in load_batch(hwm, period, *args, **kwargs):
             self._queue.put(obj)
-            if obj is self.stop:
+            if obj is self.Stop:
                 raise Task.Stop
 
 

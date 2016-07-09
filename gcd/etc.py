@@ -3,7 +3,6 @@ import operator
 import logging
 import ctypes as ct
 
-from math import inf
 from itertools import islice, chain, count
 from functools import reduce, lru_cache
 from contextlib import contextmanager
@@ -26,15 +25,16 @@ class Sentinel:
     _registry = {}
 
     def __new__(cls, *args):
+        name = args[1] if args and args[0] is None else whoami(*args, depth=2)
         sentinel = super().__new__(cls)
-        sentinel._name = args[1] if args[0] is None else whoami(*args, depth=2)
-        return cls._registry.setdefault(sentinel._name, sentinel)
+        sentinel.name = name
+        return cls._registry.setdefault(name, sentinel)
 
     def __getnewargs__(self):
-        return None, self._name
+        return None, self.name  # Workaround to avoid using __getnewargs_ex__.
 
 
-default = Sentinel('default')
+Default = Sentinel('default')
 
 
 class Bundle(dict):
@@ -72,6 +72,10 @@ class PositionalAttribute:
         getattr(obj, self.vals_attr)[self.index] = val
 
 
+def new(call):
+    return call()
+
+
 def identity(x):
     return x
 
@@ -92,12 +96,10 @@ def product(iterable, start=1):
     return reduce(operator.mul, iterable, start)
 
 
-def repeat_call(func, *args, until=None, times=None, **kwargs):
-    for i in count(0):
-        if i == times:
-            return
+def repeat_call(func, *args, until=Default, times=None, **kwargs):
+    for i in range(times) if times else count():
         obj = func(*args, **kwargs)
-        if obj == until:
+        if until is not Default and obj == until:
             return
         yield obj
 
@@ -154,19 +156,17 @@ def load_pyconfig(file_or_path, config=None):
     return config
 
 
-def retry_on(errors, attempts=inf):  # TODO add reset and throttle periods.
+def retry_on(errors, attempts=None):  # TODO add reset and throttle periods.
     def decorator(fun):
         def wrapper(*args, **kwargs):
-            for i in count(1):
+            for i in range(attempts) if attempts else count():
                 try:
                     return fun(*args, **kwargs)
                 except Exception as error:
                     if not is_retryable(error):
                         raise
                     logger.exception('Retrying %s, %s/%s attempts' %
-                                     (fun.__name__, i, attempts))
-                    if i == attempts:
-                        return
+                                     (fun.__name__, i + 1, attempts))
         return wrapper
     if not callable(errors):
         def is_retryable(error):

@@ -49,7 +49,7 @@ class TestWorkers(TestCase):
             i += 1
             return batches[i]
         i = -1
-        batches = [1], [2, 3, 4], [5, 6, Streamer.stop]
+        batches = [1], [2, 3, 4], [5, 6, Streamer.Stop]
         streamer = Streamer(load, hwm=2, period=0.1).start()
         time.sleep(0.11)
         self.assertEqual(streamer.get(), 1)
