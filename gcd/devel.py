@@ -5,12 +5,13 @@ import os
 import sys
 import pdb
 import pprint
+import threading as mt
 
 from inspect import currentframe, getframeinfo
 from contextlib import contextmanager
 from pprint import PrettyPrinter
 
-from gcd.nix import flock
+from gcd.nix import flock, sh
 
 try:
     import builtins
@@ -23,7 +24,8 @@ except ImportError:  # Python 2.
     reload = reload
 
 
-__all__ = ['reload', 'echo', 'lecho', 'pecho', 'brk', 'rbrk', 'fbrk', 'fixrl']
+__all__ = ['reload', 'echo', 'lecho', 'pecho', 'trace', 'brk', 'rbrk', 'fbrk',
+           'fixrl']
 
 
 def echo(*args, **kwargs):
@@ -41,6 +43,37 @@ def pecho(obj, classes=None, file=sys.stderr, *args, **kwargs):
     with patched_pprint(classes):
         pprint.pprint(obj, stream=file, *args, **kwargs)
         file.flush()
+
+
+def trace(fun):
+    def prefix(n, m=0):
+        return '| ' * n + ' ' * m
+    def pformat(prefix, obj):
+        with patched_pprint():
+            text = pprint.pformat(obj, compact=True, width=cols - len(prefix))
+            return text.replace('\n', '\n' + prefix)
+    def traced(*args, **kwargs):
+        level = getattr(trace._local, 'level', 0)
+        col = min(level, 10)
+        name = fun.__name__
+        echo('%s%s%s' % (
+            prefix(col), name,
+            pformat(prefix(col + 1, len(name) - 2), (args, kwargs))))
+        try:
+            trace._local.level = level + 1
+            res = fun(*args, **kwargs)
+            return res
+        except Exception as err:
+            res = err
+            raise
+        finally:
+            echo('%s`> %s' % (prefix(col), pformat(prefix(col, 3), res)))
+            trace._local.level -= 1
+    cols = int(sh('stty size|').split()[1])
+    return traced
+
+
+trace._local = mt.local()
 
 
 brk = pdb.set_trace
@@ -70,25 +103,25 @@ def fixrl():
 
 
 @contextmanager
-def patched_pprint(classes):
+def patched_pprint(classes=None):
     def simplify(obj):
         if (obj.__class__.__repr__ not in PrettyPrinter._dispatch and
                 (not classes or obj.__class__ in classes) and
                 hasattr(obj, '__dict__')):
-            obj = obj.__dict__
+            obj = (obj.__class__.__qualname__, vars(obj))
         return obj
 
-    def safe_repr(obj, *args, **kwargs):
-        return _safe_repr(simplify(obj), *args, **kwargs)
-    _safe_repr, pprint._safe_repr = pprint._safe_repr, safe_repr
+    def new_safe_repr(obj, *args, **kwargs):
+        return old_safe_repr(simplify(obj), *args, **kwargs)
+    old_safe_repr, pprint._safe_repr = pprint._safe_repr, new_safe_repr
 
-    def format(self, obj, *args, **kwargs):
-        return _format(self, simplify(obj), *args, **kwargs)
-    _format, PrettyPrinter._format = PrettyPrinter._format, format
+    def new_format(self, obj, *args, **kwargs):
+        return old_format(self, simplify(obj), *args, **kwargs)
+    old_format, PrettyPrinter._format = PrettyPrinter._format, new_format
 
     yield
 
-    pprint._safe_repr, PrettyPrinter._format = _safe_repr, _format
+    pprint._safe_repr, PrettyPrinter._format = old_safe_repr, old_format
 
 
 class RemotePdb(pdb.Pdb):
