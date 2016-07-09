@@ -12,24 +12,26 @@ from contextlib import contextmanager
 logger = logging.getLogger(__name__)
 
 
-def whoami(*extra, depth=1):
+def whoami(*args, depth=1):
     frame = inspect.stack()[depth].frame
-    qualname = frame.f_locals.get('__qualname__')
-    if qualname:
-        names = [frame.f_globals['__name__'], qualname]
-    else:
-        names = [frame.f_globals['__name__']]
-    names.extend(n if type(n) is str else n.__name__ for n in extra)
+    names = [frame.f_globals['__name__']]
+    if '__qualname__' in frame.f_locals:
+        names.append(frame.f_locals['__qualname__'])
+    names.extend(a if type(a) is str else a.__name__ for a in args)
     return '.'.join(names)
 
 
-class Sentinel(str):
+class Sentinel:
 
-    def __new__(cls, *extra):
-        return super().__new__(cls, whoami(*extra, depth=2))
+    _registry = {}
 
-    def __eq__(self, other):
-        return type(other) is Sentinel and str.__eq__(self, other)
+    def __new__(cls, *args):
+        sentinel = super().__new__(cls)
+        sentinel._name = args[1] if args[0] is None else whoami(*args, depth=2)
+        return cls._registry.setdefault(sentinel._name, sentinel)
+
+    def __getnewargs__(self):
+        return None, self._name
 
 
 default = Sentinel('default')
@@ -90,9 +92,7 @@ def product(iterable, start=1):
     return reduce(operator.mul, iterable, start)
 
 
-def repeat_call(func, *args, until=default, times=None, **kwargs):
-    if until == default:
-        until = repeat_call.stop
+def repeat_call(func, *args, until=None, times=None, **kwargs):
     for i in count(0):
         if i == times:
             return
@@ -100,9 +100,6 @@ def repeat_call(func, *args, until=default, times=None, **kwargs):
         if obj == until:
             return
         yield obj
-
-
-repeat_call.stop = Sentinel(repeat_call, 'stop')
 
 
 def chunks(iterable, size):
