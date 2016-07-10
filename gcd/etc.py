@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 def whoami(*args, depth=1):
     frame = inspect.stack()[depth].frame
     names = [frame.f_globals['__name__']]
-    if '__qualname__' in frame.f_locals:
+    if '__qualname__' in frame.f_locals:  # Depends on undocumented behavior.
         names.append(frame.f_locals['__qualname__'])
     names.extend(a if type(a) is str else a.__name__ for a in args)
     return '.'.join(names)
