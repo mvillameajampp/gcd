@@ -32,12 +32,12 @@ class Statistics:
             self._max_time = x_time
         else:
             m, w = 1, self.memory ** -delta
-        x *= w
+        wx = w * x
         self.n = m * self.n + w
-        self._sum = m * self._sum + x
-        self._sqsum = m * self._sqsum + x * x
-        self.min = min(m * self.min, x)
-        self.max = max(m * self.max, x)
+        self._sum = m * self._sum + wx
+        self._sqsum = m * self._sqsum + w * x * x
+        self.min = min(m * self.min, wx)
+        self.max = max(m * self.max, wx)
         return self
 
     @property
