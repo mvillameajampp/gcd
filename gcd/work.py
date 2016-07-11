@@ -124,7 +124,13 @@ class Streamer(Task):
         return self._queue.get(*args, **kwargs)
 
     def __iter__(self):
-        return repeat_call(self.get, until=self.Stop)
+        return self
+
+    def __next__(self):
+        obj = self._queue.get()
+        if obj is self.Stop:
+            raise StopIteration
+        return obj
 
     def _callback(self, load_batch, hwm, period, args, kwargs):
         for obj in load_batch(hwm, period, *args, **kwargs):
