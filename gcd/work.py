@@ -6,7 +6,7 @@ import threading as mt
 from math import inf
 from queue import Empty, Queue
 
-from gcd.etc import identity, repeat_call, Sentinel
+from gcd.etc import identity, repeat_call, new
 from gcd.chronos import as_timer, span
 
 
@@ -109,7 +109,9 @@ class Batcher(Task):
 
 class Streamer(Task):
 
-    Stop = Sentinel('stop')
+    @new
+    class Stop:
+        pass
 
     def __init__(self, load_batch, *args, hwm=None, period=None,
                  queue=None, new_process=False, **kwargs):

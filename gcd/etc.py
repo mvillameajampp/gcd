@@ -1,4 +1,3 @@
-import inspect
 import operator
 import logging
 import ctypes as ct
@@ -11,30 +10,26 @@ from contextlib import contextmanager
 logger = logging.getLogger(__name__)
 
 
-def whoami(*args, depth=1):
-    frame = inspect.stack()[depth].frame
-    names = [frame.f_globals['__name__']]
-    if '__qualname__' in frame.f_locals:  # Depends on undocumented behavior.
-        names.append(frame.f_locals['__qualname__'])
-    names.extend(a if type(a) is str else a.__name__ for a in args)
-    return '.'.join(names)
+class Singleton:
+
+    def __new__(cls, *args, **kwargs):
+        if not hasattr(cls, '_instance'):
+            cls._instance = super().__new__(cls, *args, **kwargs)
+        return cls._instance
+
+    def __reduce__(self):
+        return self.__class__.__qualname__
 
 
-class Sentinel:
-
-    _registry = {}
-
-    def __new__(cls, *args):
-        name = args[1] if args and args[0] is None else whoami(*args, depth=2)
-        sentinel = super().__new__(cls)
-        sentinel.name = name
-        return cls._registry.setdefault(name, sentinel)
-
-    def __getnewargs__(self):
-        return None, self.name  # Workaround to avoid using __getnewargs_ex__.
+def new(call):
+    if type(call) is type and not issubclass(call, Singleton):
+        call = type(call.__qualname__, (Singleton, call), {})
+    return call()
 
 
-Default = Sentinel('default')
+@new
+class Default:
+    pass
 
 
 class Bundle(dict):
@@ -70,10 +65,6 @@ class PositionalAttribute:
 
     def __set__(self, obj, val):
         getattr(obj, self.vals_attr)[self.index] = val
-
-
-def new(call):
-    return call()
 
 
 def identity(x):
