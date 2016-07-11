@@ -22,13 +22,11 @@ class Singleton:
 
 
 def new(call):
-    if type(call) is type and not issubclass(call, Singleton):
-        call = type(call.__qualname__, (Singleton, call), {})
     return call()
 
 
 @new
-class Default:
+class Default(Singleton):
     pass
 
 
