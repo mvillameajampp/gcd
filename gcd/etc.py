@@ -10,23 +10,14 @@ from contextlib import contextmanager
 logger = logging.getLogger(__name__)
 
 
-class Singleton:
-
-    def __new__(cls, *args, **kwargs):
-        if not hasattr(cls, '_instance'):
-            cls._instance = super().__new__(cls, *args, **kwargs)
-        return cls._instance
-
-    def __reduce__(self):
-        return self.__class__.__qualname__
-
-
 def new(call):
+    if type(call) is type:
+        call.__reduce__ = lambda self: call.__qualname__
     return call()
 
 
 @new
-class Default(Singleton):
+class Default:
     pass
 
 
