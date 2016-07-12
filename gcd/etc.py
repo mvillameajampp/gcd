@@ -156,6 +156,10 @@ def retry_on(errors, attempts=None):  # TODO add reset and throttle periods.
     return decorator
 
 
+def fullname(obj):
+    return '%s.%s' % (obj.__module__, obj.__qualname__)
+
+
 @lru_cache(maxsize=100)
 def template(file_or_path_or_str, **kwargs):
     import jinja2
