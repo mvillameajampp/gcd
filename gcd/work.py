@@ -53,23 +53,6 @@ class Worker:
         self.worker.join()
 
 
-class Cluster:
-
-    def __init__(self, nworkers, target, *args, new_process=True, **kwargs):
-        self.workers = [Worker(target, i, *args, new_process=new_process,
-                               **kwargs)
-                        for i in range(nworkers)]
-
-    def start(self):
-        for worker in self.workers:
-            worker.start()
-        return self
-
-    def join(self):
-        for worker in self.workers:
-            worker.join()
-
-
 class Task(Worker):
 
     class Stop(Exception):
@@ -160,7 +143,8 @@ def iter_queue(queue, until=None, times=None):
 
 
 def sorted_queue(queue, item=identity, log_period=span(minutes=5),
-                 max_ooo=10000):
+                 max_ooo=None):
+    max_ooo = max_ooo or default_hwm
     if max_ooo < inf and log_period:
         def log():
             nonlocal seen, lost
