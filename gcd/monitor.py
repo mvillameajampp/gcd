@@ -158,11 +158,11 @@ class StoreHandler(logging.Handler):
         if not isinstance(formatter, logging.Formatter):
             formatter = JsonFormatter(formatter)
         self.setFormatter(formatter)
-        self._batcher = Batcher(period, store.add).start()
+        self._batcher = Batcher(store.add, period=period).start()
 
     def emit(self, record):
         try:
-            self._batcher.add(self.format(record))
+            self._batcher.put(self.format(record))
         except:  # Avoid reentering or aborting: just a heads up in stderr.
             traceback.print_exc()
 
