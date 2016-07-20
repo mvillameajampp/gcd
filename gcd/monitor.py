@@ -20,12 +20,13 @@ class Statistics:
         self.n = self._sum = self._sqsum = 0
         self.min = float('inf')
         self.max = -float('inf')
-        self._max_time = 0
+        self._max_time = None
 
     def add(self, x, x_time=None):
         if x_time is None:
             x_time = time.time()
-        delta = x_time - self._max_time
+        max_time = x_time if self._max_time is None else self._max_time
+        delta = x_time - max_time
         if delta >= 0:
             m, w = self.memory ** delta, 1
             self._max_time = x_time
