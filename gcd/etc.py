@@ -98,6 +98,7 @@ def chunks(iterable, size):
 
 
 def split(seq, nparts):
+    assert len(seq) >= nparts
     size = len(seq) / nparts
     idxs = [round(size * i) for i in range(nparts + 1)]
     for i, j in zip(idxs[:-1], idxs[1:]):
