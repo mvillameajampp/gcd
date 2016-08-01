@@ -182,5 +182,4 @@ class JsonLogStore(PgStore):
                     """ % self._table, ((l,) for l in logs), values=True)
 
     def _create(self):
-        with self.transaction():
-            execute('CREATE TABLE IF NOT EXISTS %s (log jsonb)' % self._table)
+        execute('CREATE TABLE IF NOT EXISTS %s (log jsonb)' % self._table)
