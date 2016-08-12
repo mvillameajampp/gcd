@@ -55,7 +55,8 @@ class Worker:
 
 class Task(Worker):
 
-    class Stop(Exception):
+    @new
+    class Stop:
         pass
 
     def __init__(self, period_or_timer, callback, *args, new_process=False,
@@ -68,9 +69,8 @@ class Task(Worker):
         while True:
             try:
                 timer.wait()
-                callback(*args, **kwargs)
-            except Task.Stop:
-                return
+                if callback(*args, **kwargs) is Task.Stop:
+                    return
             except Exception:
                 logger.exception('Error executing task')
 
@@ -86,15 +86,19 @@ class Batcher(Task):
     def put(self, obj, *args, **kwargs):
         self._queue.put(obj, *args, **kwargs)
 
+    def join(self):
+        self._queue.put(Task.Stop)
+        super().join()
+
     def _callback(self, handle_batch, args, kwargs):
-        handle_batch(dequeue(self._queue, 1), *args, **kwargs)
+        batch = list(dequeue(self._queue, 1))
+        stop = batch[-1] is Task.Stop
+        handle_batch(batch[:-1] if stop else batch, *args, **kwargs)
+        if stop:
+            return Task.Stop
 
 
 class Streamer(Task):
-
-    @new
-    class Stop:
-        pass
 
     def __init__(self, load_batch, *args, hwm=None, period=None,
                  queue=None, new_process=False, **kwargs):
@@ -111,15 +115,15 @@ class Streamer(Task):
 
     def __next__(self):
         obj = self._queue.get()
-        if obj is self.Stop:
+        if obj is Task.Stop:
             raise StopIteration
         return obj
 
     def _callback(self, load_batch, hwm, period, args, kwargs):
         for obj in load_batch(hwm, period, *args, **kwargs):
             self._queue.put(obj)
-            if obj is self.Stop:
-                raise Task.Stop
+            if obj is Task.Stop:
+                return Task.Stop
 
 
 def new_queue(hwm=None, shared=False):

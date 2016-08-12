@@ -14,7 +14,7 @@ class TestWorkers(TestCase):
         def counter(step):
             nonlocal count
             if count == 2:
-                raise Task.Stop
+                return Task.Stop
             count += step
         count = 0
         Task(0.1, counter, 2).start()
