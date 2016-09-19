@@ -17,7 +17,7 @@ class Statistics:
 
     def __init__(self, memory=1):
         self.memory = as_memory(memory)
-        self.n = self._sum = self._sqsum = 0
+        self.n = self._sum = self._sqsum = self._sqmean = 0
         self.min = float('inf')
         self.max = -float('inf')
         self._max_time = None
@@ -35,7 +35,11 @@ class Statistics:
         wx = w * x
         self.n = m * self.n + w
         self._sum = m * self._sum + wx
-        self._sqsum = m * self._sqsum + w * x * x
+        # https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance
+        # #Online_algorithm
+        delta = x - self._sqmean
+        self._sqmean = m * self._sqmean + w * delta / self.n
+        self._sqsum = m * self._sqsum + w * delta * (x - self._sqmean)
         self.min = min(m * self.min, wx)
         self.max = max(m * self.max, wx)
         return self
@@ -48,8 +52,7 @@ class Statistics:
     @property
     def stdev(self):
         if self.n > 1:
-            sqmean = self.mean ** 2
-            return ((self._sqsum - self.n * sqmean) / (self.n - 1)) ** 0.5
+            return (self._sqsum / (self.n - 1)) ** 0.5
 
     def as_dict(self):
         return {a: getattr(self, a)
