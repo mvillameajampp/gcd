@@ -80,15 +80,29 @@ class Timer:
 
 class LeakyBucket:
 
-    def __init__(self, freq):
-        self._creation_time = time.time()
+    def __init__(self, freq, capacity):
         self._period = 1 / freq
+        self._capacity = capacity
         self._used = 0
+        self._last_leak = time.time()
 
-    def wait(self):
-        now = time.time()
-        leaked = int((now - self._creation_time) / self._period)
-        if self._used > leaked:
-            next_leak_time = self._creation_time + (leaked + 1) * self._period
-            time.sleep(next_leak_time - now)
+    def use(self):
+        if self._used == self._capacity:
+            leaked = int((time.time() - self._last_leak) / self._period)
+            if leaked == 0:
+                return False
+            self._last_leak += leaked * self._period
+            self._used = max(0, self._used - leaked)
         self._used += 1
+        return True
+
+    def wait(self, space=1):
+        assert space <= self._capacity
+        to_leak = space - (self._capacity - self._used)
+        if to_leak > 0:
+            now = time.time()
+            until = to_leak * self._period + self._last_leak
+            if until > now:
+                time.sleep(until - now)
+            self._last_leak = until
+            self._used = max(0, self._used - to_leak)
