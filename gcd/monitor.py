@@ -186,3 +186,7 @@ class JsonLogStore(PgStore):
 
     def _create(self):
         execute('CREATE TABLE IF NOT EXISTS %s (log jsonb)' % self._table)
+        execute("""
+                CREATE INDEX IF NOT EXISTS logs_created_index
+                ON %s (((log->>'created')::double precision))
+                """ % self._table)
