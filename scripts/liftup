@@ -4,7 +4,7 @@ from urllib.parse import quote
 from pandocfilters import toJSONFilter, RawInline
 from pkg_resources import resource_filename
 
-from gcd.nix import sh, sh_quote, path, os, cmd, env, sys
+from gcd.nix import sh, sh_quote, path, cmd, env, sys
 
 
 def codecogs(key, value, format, meta):
@@ -18,16 +18,6 @@ def codecogs(key, value, format, meta):
             return RawInline('html', '<img src="%s"></img>' % url)
 
 
-def tmpout(args):
-    output_dir = '/tmp/liftup'
-    output_name = path.splitext(
-        path.abspath(args.input).replace('/', '$'))[0]
-    output_ext = 'pdf' if args.type == 'pdf' else 'html'
-    if not path.exists(output_dir):
-        os.mkdir(output_dir)
-    return '%s/%s.%s' % (output_dir, output_name, output_ext)
-
-
 @cmd.run
 def main():
     """Convert any input supported by pandoc to html (page or snippet), pdf
@@ -39,24 +29,24 @@ def main():
         toJSONFilter(codecogs)
         sys.exit(0)
 
-    cmd.arg('--output', '-o',
-            help="""Output file, by default a temporary file uniquely
-                 associated with the input file.""")
     cmd.arg('--type', '-t', default='html',
             choices=['html', 'pdf', 'gfm', 'snippet'],
             help='Output type, by default html.')
     cmd.arg('--mathimg', '-m', action='store_true',
             help='Render math as image url. Always true for -t gfm.')
-    cmd.arg('--subst', '-s', action='store_true',
-            help="""Prints the output path to stdout in order to facilitate
-                 command substitution.""")
-    cmd.arg('input')
+    cmd.arg('input',
+            help='Input file in any format supported by pandoc.')
+    cmd.arg('output', nargs='?',
+            help='Output file, by default input file with replaced extension.')
     args = cmd.args
 
-    output = args.output if args.output else tmpout(args)
+    if not args.output:
+        args.output = path.splitext(args.input)[0] + (
+            '.pdf' if args.type == 'pdf' else '.html')
+
     pandoc = 'pandoc -S -c %s -o %s' % (
         sh_quote(resource_filename('gcd', 'resources/github.css')),
-        sh_quote(output))
+        sh_quote(args.output))
 
     if args.type == 'snippet':
         pandoc += ' -t html --template=' + sh_quote(
@@ -77,6 +67,3 @@ def main():
         pandoc += ' -f markdown' + extensions
 
     sh(pandoc + ' ' + sh_quote(args.input))
-
-    if args.subst:
-        print(output)
