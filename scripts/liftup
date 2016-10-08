@@ -46,7 +46,7 @@ def main():
             choices=['html', 'pdf', 'gfm', 'snippet'],
             help='Output type, by default html.')
     cmd.arg('--mathimg', '-m', action='store_true',
-            help='Render math as image url. Always true for -t github.')
+            help='Render math as image url. Always true for -t gfm.')
     cmd.arg('--subst', '-s', action='store_true',
             help="""Prints the output path to stdout in order to facilitate
                  command substitution.""")
