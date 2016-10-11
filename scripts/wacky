@@ -8,7 +8,7 @@ import re
 def publish(from_path, to_path, to_type):
     yield from_path, to_path
     if to_type:
-        sh(('liftup -o %s -t %s %s', to_path, to_type, from_path))
+        sh(('liftup -t %s %s %s', to_type, from_path, to_path))
         if to_type == 'html' and not p.exists(to_path[:-5]):
             os.symlink(p.realpath(to_path), to_path[:-5])
     else:  # This is an asset.
