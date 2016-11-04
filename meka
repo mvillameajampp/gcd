@@ -1,9 +1,0 @@
-#!/usr/bin/env python3.5
-
-from gcd.meka import cmd, pylint, pytest, meka
-
-cmd.sub(pylint())
-
-cmd.sub(pytest(cov_pkgs='gcd'))
-
-cmd.run(meka)

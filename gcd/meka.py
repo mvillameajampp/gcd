@@ -65,20 +65,6 @@ def sh(cmd, input=None):
     return _sh(cmd, input)
 
 
-def cmdclass(build=None, clean=None):
-    from setuptools.command.install import install
-    from distutils.command.clean import clean as clean_
-    cmdclass = {}
-    for cls, cmd in (install, build), (clean_, clean):  # noqa
-        if cmd:
-            class _(cls):
-                def run(self, cmd=cmd):
-                    _sh(cmd)
-                    super().run()
-            cmdclass[cls.__name__] = _
-    return cmdclass
-
-
 # ------------------------------ Rules ----------------------------------------
 
 
@@ -146,7 +132,7 @@ def gen(tmpl, **kwargs):
 
 def pylint(omit=[]):
     def lint():
-        'Run flake8 linter'
+        'Run flake8 linter.'
         yield
         sh("shopt -s globstar; flake8 -v --exclude '%s' --ignore E306 "
            "**/*.py || true" % ','.join(as_many(omit)))
@@ -211,3 +197,65 @@ def clean(*paths):
             except FileNotFoundError:
                 pass
     return clean
+
+
+# ------------------------- Distutils wrapper ---------------------------------
+
+
+if path.basename(sys.argv[0]) == 'setup.py':
+
+    import argparse
+
+    from distutils.core import Command, DistutilsOptionError
+
+    class SetupCommand:
+
+        def __init__(self):
+            self.cmdclass = {}
+
+        def arg(self, *args, **kwargs):
+            if not args[0].startswith('-'):  # Convert positional to option.
+                args = ('--' + args[0],)
+                kwargs['required'] = True
+            action = self._parser.add_argument(*args, **kwargs)
+            short_opt = long_opt = None
+            for opt in action.option_strings:
+                opt = opt.lstrip('-')
+                if len(opt) == 1:
+                    short_opt = opt
+                else:
+                    long_opt = opt
+            opt_arg = '=' if action.nargs != 0 else ''
+            opt_help = action.help[0].lower() + action.help[1:].rstrip('.')
+            self._opts[long_opt] = long_opt + opt_arg, short_opt, opt_help
+
+        def sub(self, fun, *, name=None, doc=None, base=Command):
+            opts = self._opts = {}
+            parser = self._parser = argparse.ArgumentParser(add_help=False)
+            def error(msg):
+                raise DistutilsOptionError(msg)
+            parser.error = error
+            gen = fun()
+            next(gen)  # Execute 1st phase: register args.
+            class Wrapper(base):
+                description = (doc or fun.__doc__ or
+                               getattr(base, 'description', None))
+                user_options = (getattr(base, 'user_options', []) +
+                                list(opts.values()))
+                def initialize_options(wrapper):
+                    wrapper.__dict__.update(dict.fromkeys(opts))
+                def finalize_options(wrapper):
+                    parser.parse_known_args(sys.argv, namespace=wrapper)
+                    wrapper.quiet = not wrapper.verbose
+                def run(wrapper):
+                    self.args = wrapper
+                    self.super = super(Wrapper, wrapper).run
+                    next(gen, None)  # Execute 2nd phase: the command itself.
+            Wrapper.__name__ = name or fun.__name__
+            self.cmdclass[Wrapper.__name__] = Wrapper
+            return Wrapper
+
+        def extend(self, base):
+            return lambda fun: self.sub(fun, base=base)
+
+    cmd = SetupCommand()  # noqa
