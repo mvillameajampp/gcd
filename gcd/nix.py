@@ -135,15 +135,9 @@ class Command:
             gen = fun()
             if gen is not None:  # Allow for sub cmds to be also top cmds.
                 next(gen)
-                try:
-                    next(gen)
-                except StopIteration:
-                    pass
+                next(gen, None)
         if '_gen' in self.args:  # Run second part of sub cmd.
-            try:
-                next(self.args._gen)
-            except StopIteration:
-                pass
+            next(self.args._gen, None)
 
 
 cmd = Command()
