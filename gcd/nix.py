@@ -67,9 +67,9 @@ def cat(path):
 
 
 @contextmanager
-def flock(path):
+def flock(path, shared=False):
     with open(path, 'w') as lock:
-        fcntl.flock(lock, fcntl.LOCK_EX)
+        fcntl.flock(lock, fcntl.LOCK_SH if shared else fcntl.LOCK_EX)
         try:
             yield
         finally:
