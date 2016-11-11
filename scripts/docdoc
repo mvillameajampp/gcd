@@ -1,5 +1,7 @@
 #!/bin/python3
 
+import shutil
+
 from urllib.parse import quote
 from pandocfilters import toJSONFilters, RawInline
 from pkg_resources import resource_filename
@@ -11,7 +13,7 @@ def latexmk():
     assert (args.type or 'pdf') == 'pdf' and not args.mathimg
     sh(('latexmk -pdf -g -latexoption=-file-line-error '
         '-interaction=nonstopmode -outdir=%s %s', tmpdir, args.input))
-    os.rename('%s/%s.pdf' % (tmpdir, name), args.output or '%s.pdf' % name)
+    shutil.move('%s/%s.pdf' % (tmpdir, name), args.output or '%s.pdf' % name)
 
 
 def pandoc():
