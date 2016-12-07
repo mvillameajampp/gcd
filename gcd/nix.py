@@ -26,7 +26,7 @@ def sh(cmd, input=None):
     proc = subprocess.Popen(
         cmd.rstrip('&|'), shell=True, universal_newlines=True,
         stdin=stdin, stdout=stdout, stderr=stderr)
-    if cmd[-1] in '&':
+    if cmd[-1] == '&':
         if input is not None:
             proc.stdin.write(input)
         return proc
