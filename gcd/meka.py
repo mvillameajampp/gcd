@@ -202,7 +202,9 @@ def clean(*paths):
 # ------------------------- Distutils wrapper ---------------------------------
 
 
-if path.basename(sys.argv[0]) == 'setup.py':
+# Not bullet-proof but pip executes python -c "import setuptools...
+if sys.argv[0].endswith('setup.py') or (sys.argv[0] == '-c' and
+                                        'setuptools' in sys.modules):
 
     import argparse
 
