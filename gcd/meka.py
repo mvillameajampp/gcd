@@ -245,13 +245,18 @@ if sys.argv[0].endswith('setup.py') or (sys.argv[0] == '-c' and
                 user_options = (getattr(base, 'user_options', []) +
                                 list(opts.values()))
                 def initialize_options(wrapper):
+                    if base is not Command:
+                        base.initialize_options(wrapper)
                     wrapper.__dict__.update(dict.fromkeys(opts))
                 def finalize_options(wrapper):
+                    if base is not Command:
+                        base.finalize_options(wrapper)
                     parser.parse_known_args(sys.argv, namespace=wrapper)
                     wrapper.quiet = not wrapper.verbose
                 def run(wrapper):
                     self.args = wrapper
-                    self.super = super(Wrapper, wrapper).run
+                    if base is not Command:
+                        self.super = lambda: base.run(wrapper)
                     next(gen, None)  # Execute 2nd phase: the command itself.
             Wrapper.__name__ = name or fun.__name__
             self.cmdclass[Wrapper.__name__] = Wrapper
