@@ -202,7 +202,9 @@ def clean(*paths):
 # ------------------------- Distutils wrapper ---------------------------------
 
 
-if path.basename(sys.argv[0]) == 'setup.py':
+# Not bullet-proof but pip executes python -c "import setuptools...
+if sys.argv[0].endswith('setup.py') or (sys.argv[0] == '-c' and
+                                        'setuptools' in sys.modules):
 
     import argparse
 
@@ -229,7 +231,8 @@ if path.basename(sys.argv[0]) == 'setup.py':
             opt_help = action.help[0].lower() + action.help[1:].rstrip('.')
             self._opts[long_opt] = long_opt + opt_arg, short_opt, opt_help
 
-        def sub(self, fun, *, name=None, doc=None, base=Command):
+        def sub(self, fun, *, name=None, doc=None, base=Command,
+                run_super=True):
             opts = self._opts = {}
             parser = self._parser = argparse.ArgumentParser(add_help=False)
             def error(msg):
@@ -243,15 +246,21 @@ if path.basename(sys.argv[0]) == 'setup.py':
                 user_options = (getattr(base, 'user_options', []) +
                                 list(opts.values()))
                 def initialize_options(wrapper):
+                    if base is not Command:
+                        base.initialize_options(wrapper)
                     wrapper.__dict__.update(dict.fromkeys(opts))
                 def finalize_options(wrapper):
                     parser.parse_known_args(sys.argv, namespace=wrapper)
                     wrapper.quiet = not wrapper.verbose
+                    if base is not Command:
+                        base.finalize_options(wrapper)
                 def run(wrapper):
-                    self.args = wrapper
-                    self.super = super(Wrapper, wrapper).run
+                    self.self = self.args = wrapper
                     next(gen, None)  # Execute 2nd phase: the command itself.
-            Wrapper.__name__ = name or fun.__name__
+                    if base is not Command and run_super:
+                        base.run(wrapper)
+            Wrapper.__name__ = name or (
+                base.__name__ if base is not Command else fun.__name__)
             self.cmdclass[Wrapper.__name__] = Wrapper
             return Wrapper
 
