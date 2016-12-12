@@ -231,7 +231,8 @@ if sys.argv[0].endswith('setup.py') or (sys.argv[0] == '-c' and
             opt_help = action.help[0].lower() + action.help[1:].rstrip('.')
             self._opts[long_opt] = long_opt + opt_arg, short_opt, opt_help
 
-        def sub(self, fun, *, name=None, doc=None, base=Command):
+        def sub(self, fun, *, name=None, doc=None, base=Command,
+                run_super=True):
             opts = self._opts = {}
             parser = self._parser = argparse.ArgumentParser(add_help=False)
             def error(msg):
@@ -249,16 +250,17 @@ if sys.argv[0].endswith('setup.py') or (sys.argv[0] == '-c' and
                         base.initialize_options(wrapper)
                     wrapper.__dict__.update(dict.fromkeys(opts))
                 def finalize_options(wrapper):
-                    if base is not Command:
-                        base.finalize_options(wrapper)
                     parser.parse_known_args(sys.argv, namespace=wrapper)
                     wrapper.quiet = not wrapper.verbose
-                def run(wrapper):
-                    self.args = wrapper
                     if base is not Command:
-                        self.super = lambda: base.run(wrapper)
+                        base.finalize_options(wrapper)
+                def run(wrapper):
+                    self.self = self.args = wrapper
                     next(gen, None)  # Execute 2nd phase: the command itself.
-            Wrapper.__name__ = name or fun.__name__
+                    if base is not Command and run_super:
+                        base.run(wrapper)
+            Wrapper.__name__ = name or (
+                base.__name__ if base is not Command else fun.__name__)
             self.cmdclass[Wrapper.__name__] = Wrapper
             return Wrapper
 
