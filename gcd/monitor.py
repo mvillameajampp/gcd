@@ -22,16 +22,16 @@ class Statistics:
         self.max = -float('inf')
         self._max_time = None
 
-    def add(self, x, x_time=None):
+    def add(self, x, x_time=None, x_weight=1):
         if x_time is None:
             x_time = time.time()
         max_time = x_time if self._max_time is None else self._max_time
         delta = x_time - max_time
         if delta >= 0:
-            m, w = self.memory ** delta, 1
+            m, w = self.memory ** delta, x_weight
             self._max_time = x_time
         else:
-            m, w = 1, self.memory ** -delta
+            m, w = 1, x_weight * self.memory ** -delta
         wx = w * x
         self.n = m * self.n + w
         self._sum = m * self._sum + wx
