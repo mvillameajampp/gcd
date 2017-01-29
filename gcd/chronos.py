@@ -27,6 +27,10 @@ def iso(ts, format='%Y-%m-%d %H:%M:%S.%f'):
     return datetime.fromtimestamp(ts).strftime(format)
 
 
+def trunc(ts, span):
+    return (ts // span) * span
+
+
 def set_timezone(timezone=None):
     if timezone:
         os.environ['TZ'] = timezone
