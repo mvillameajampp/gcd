@@ -44,6 +44,12 @@ def pandoc():
     else:
         pandoc += ' --mathjax'
 
+    if args.citeproc:
+        pandoc += ' --filter pandoc-citeproc'
+
+    if args.crossref:
+        pandoc += ' --filter pandoc-crossref'
+
     if path.splitext(args.input)[1] == '.md':
         extensions = '+lists_without_preceding_blankline+autolink_bare_uris'
         pandoc += ' -f markdown' + extensions
@@ -88,6 +94,10 @@ def main():
                  other input types. Only pdf is compatible with tex input.""")
     cmd.arg('--mathimg', '-m', action='store_true',
             help='Render math as image url. Always true for gfm output.')
+    cmd.arg('--citeproc', '-c', action='store_true',
+            help='Use the pandoc-citeproc filter.')
+    cmd.arg('--crossref', '-r', action='store_true',
+            help='Use the pandoc-crossref filter.')
 
     global args, name, tmpdir
     args = cmd.args
