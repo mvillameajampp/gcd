@@ -18,11 +18,11 @@ def latexmk():
 
 def pandoc():
     args.type = args.type or 'html'
-    if args.type == 'html':
-        args.output = args.output or '%s.html' % name
-    else:
+    if args.type == 'pdf':
         original_output = args.output
-        args.output = args.output or '%s/%s.tex' % (tmpdir, name)
+        args.output = '%s/%s.tex' % (tmpdir, name)
+    else:
+        args.output = args.output or '%s.html' % name
 
     pandoc = 'pandoc -S -o ' + sh_quote(args.output)
 
@@ -101,7 +101,7 @@ def main():
 
     global args, name, tmpdir
     args = cmd.args
-    name, ext = path.splitext(args.input)
+    name, ext = path.splitext(path.basename(args.input))
     tmpdir = '/tmp/docdoc/%s' % path.abspath(args.input).replace('/', '#')[1:]
     os.makedirs(tmpdir, exist_ok=True)
     if ext in ('.tex', '.latex'):
