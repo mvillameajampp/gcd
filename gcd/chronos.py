@@ -11,7 +11,7 @@ def utc(*args, **kwargs):
                    '%Y-%m-%d', '%H:%M:%S.%f', '%H:%M:%S')
         for format in formats:
             try:
-                return datetime.strptime(iso, format).timestamp()
+                return strptime(iso, format)
             except ValueError:
                 if format is formats[-1]:
                     raise
@@ -19,12 +19,20 @@ def utc(*args, **kwargs):
         return datetime(*args, **kwargs).timestamp()
 
 
+def iso(ts):
+    return strftime(ts, '%Y-%m-%d %H:%M:%S.%f')
+
+
+def strptime(str, format):
+    return datetime.strptime(str, format).timestamp()
+
+
+def strftime(ts, format):
+    return datetime.fromtimestamp(ts).strftime(format)
+
+
 def span(*args, **kwargs):
     return timedelta(*args, **kwargs).total_seconds()
-
-
-def iso(ts, format='%Y-%m-%d %H:%M:%S.%f'):
-    return datetime.fromtimestamp(ts).strftime(format)
 
 
 def trunc(ts, span):
