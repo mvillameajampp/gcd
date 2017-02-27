@@ -13,7 +13,7 @@ def latexmk():
     assert (args.type or 'pdf') == 'pdf' and not args.mathimg
     sh(('latexmk -pdf -g -latexoption=-file-line-error '
         '-interaction=nonstopmode -outdir=%s %s', tmpdir, args.input))
-    shutil.move('%s/%s.pdf' % (tmpdir, name), args.output or '%s.pdf' % name)
+    shutil.move('%s/%s.pdf' % (tmpdir, name), args.output or '%s.pdf' % base)
 
 
 def pandoc():
@@ -22,7 +22,7 @@ def pandoc():
         original_output = args.output
         args.output = '%s/%s.tex' % (tmpdir, name)
     else:
-        args.output = args.output or '%s.html' % name
+        args.output = args.output or '%s.html' % base
 
     pandoc = 'pandoc -S -o ' + sh_quote(args.output)
 
@@ -87,7 +87,7 @@ def main():
     cmd.arg('input',
             help='Input file in tex or any format supported by pandoc.')
     cmd.arg('--output', '-o',
-            help="""Output file, by default the name of the input with an
+            help="""Output file, by default the path of the input file with an
                  appropriate extension inferred from the output type.""")
     cmd.arg('--type', '-t', choices=['html', 'pdf', 'gfm', 'snippet'],
             help="""Output type, by default pdf for tex input and html for
@@ -99,9 +99,10 @@ def main():
     cmd.arg('--crossref', '-r', action='store_true',
             help='Use the pandoc-crossref filter.')
 
-    global args, name, tmpdir
+    global args, base, name, tmpdir
     args = cmd.args
-    name, ext = path.splitext(path.basename(args.input))
+    base, ext = path.splitext(args.input)
+    name = path.basename(base)
     tmpdir = '/tmp/docdoc/%s' % path.abspath(args.input).replace('/', '#')[1:]
     os.makedirs(tmpdir, exist_ok=True)
     if ext in ('.tex', '.latex'):
