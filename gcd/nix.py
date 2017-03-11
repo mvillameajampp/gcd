@@ -21,12 +21,12 @@ def sh(cmd, input=None):
         if not isinstance(input, str):
             input = '\n'.join(input)
         stdin = subprocess.PIPE
-    if cmd[-1] == '|':
+    if cmd[-1] == '|' or cmd[-2] == '|':
         stdout = stderr = subprocess.PIPE
     proc = subprocess.Popen(
         cmd.rstrip('&|'), shell=True, universal_newlines=True,
         stdin=stdin, stdout=stdout, stderr=stderr)
-    if cmd[-1] == '&':
+    if cmd[-1] == '&' or cmd[-2] == '&':
         if input is not None:
             proc.stdin.write(input)
         return proc
