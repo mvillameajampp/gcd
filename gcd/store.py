@@ -139,7 +139,7 @@ class PgVacuumer:
     semaphore = None
 
     def __init__(self, table, period=span(minutes=10),
-                 size_period=span(minutes=5), full_size=None,
+                 size_period=span(minutes=1), full_size=None,
                  full_rate=0.01, semaphore=None, conn_or_pool=None):
         self._table = table
         self._period = period
@@ -147,12 +147,12 @@ class PgVacuumer:
         self._full_size = full_size
         self._full_rate = full_rate
         self._full_next = 0
-        self._semaphore = semaphore or self._semaphore
+        self._semaphore = semaphore or self.semaphore
         self._conn_or_pool = conn_or_pool
         self._lock = mt.Lock()
-        self._size()
 
     def start(self):
+        self._size()
         Task(self._size_period, self._size).start()
         Task(self._period, self._vacuum).start()
         return self
@@ -165,7 +165,7 @@ class PgVacuumer:
         if self.too_big:
             now = time.time()
             if now > self._full_next:
-                log = logger.getLogger('PgVacuumer')
+                log = logging.getLogger('PgVacuumer')
                 log.warning('Table %s is too big (%sb), running full vacuum.',
                             self._table, size)
                 self._vacuum(full=True)
