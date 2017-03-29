@@ -15,7 +15,9 @@ from operator import attrgetter
 from psycopg2.pool import ThreadedConnectionPool
 
 from gcd.etc import identity, attrsetter, snippet
+from gcd.chronos import span
 from gcd.nix import sh
+from gcd.work import Task
 
 
 logger = logging.getLogger(__name__)
@@ -129,6 +131,49 @@ class PgConnectionPool:
             self._pool.closeall()
 
     __del__ = close
+
+
+class PgVacuumer:
+
+    def __init__(self, table, period=span(minutes=10),
+                 size_period=span(minutes=5), full_size=None,
+                 full_rate=0.01, conn_or_pool=None):
+        self._table = table
+        self._period = period
+        self._size_period = size_period
+        self._full_size = full_size
+        self._full_rate = full_rate
+        self._full_next = 0
+        self._conn_or_pool = conn_or_pool
+        self._lock = threading.Lock()
+        self._size()
+
+    def start(self):
+        Task(self._period, self._vacuum).start()
+        Task(self._size_period, self._size).start()
+        return self
+
+    def _size(self):
+        with Transaction(self._conn_or_pool):
+            size, = next(
+                execute('SELECT pg_relation_size(%s)', (self._table,)))
+            self.too_big = self._full_size and size > self._full_size
+        if self.too_big:
+            now = time.time()
+            if now > self._full_next:
+                log = logger.getLogger('PgVacuumer')
+                log.warning('Table %s is too big (%sb), running full vacuum.',
+                            self._table, size)
+                self._vacuum(full=True)
+                self._full_next = now + (time.time() - now) / self._full_rate
+                log.info('Table %s full vacuumed.', self._table)
+
+    def _vacuum(self, full=False):
+        with self._lock:
+            mode = 'FULL' if full else 'ANALYZE'
+            with Transaction(self._conn_or_pool):
+                execute('END')  # End transaction opened by psycopg2.
+                execute('VACUUM %s %s' % (mode, self._table))
 
 
 class PgFlattener:
