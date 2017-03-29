@@ -1,5 +1,4 @@
 import logging
-import threading
 import random
 import re
 import zlib
@@ -7,6 +6,8 @@ import time
 import pickle
 import psycopg2
 import json as json_
+
+import threading as mt
 
 from math import log
 from itertools import combinations
@@ -35,7 +36,7 @@ class Transaction:
 
     pool = None
 
-    _local = threading.local()
+    _local = mt.local()
 
     def active():
         return getattr(Transaction._local, 'active', None)
@@ -135,22 +136,25 @@ class PgConnectionPool:
 
 class PgVacuumer:
 
+    semaphore = None
+
     def __init__(self, table, period=span(minutes=10),
                  size_period=span(minutes=5), full_size=None,
-                 full_rate=0.01, conn_or_pool=None):
+                 full_rate=0.01, semaphore=None, conn_or_pool=None):
         self._table = table
         self._period = period
         self._size_period = size_period
         self._full_size = full_size
         self._full_rate = full_rate
         self._full_next = 0
+        self._semaphore = semaphore or self._semaphore
         self._conn_or_pool = conn_or_pool
-        self._lock = threading.Lock()
+        self._lock = mt.Lock()
         self._size()
 
     def start(self):
-        Task(self._period, self._vacuum).start()
         Task(self._size_period, self._size).start()
+        Task(self._period, self._vacuum).start()
         return self
 
     def _size(self):
@@ -170,10 +174,14 @@ class PgVacuumer:
 
     def _vacuum(self, full=False):
         with self._lock:
-            mode = 'FULL' if full else 'ANALYZE'
-            with Transaction(self._conn_or_pool):
-                execute('END')  # End transaction opened by psycopg2.
-                execute('VACUUM %s %s' % (mode, self._table))
+            self._semaphore and self._semaphore.acquire()
+            try:
+                with Transaction(self._conn_or_pool):
+                    execute('END')  # End transaction opened by psycopg2.
+                    execute('VACUUM %s %s' % (
+                        'FULL' if full else 'ANALYZE', self._table))
+            finally:
+                self._semaphore and self._semaphore.release()
 
 
 class PgFlattener:
