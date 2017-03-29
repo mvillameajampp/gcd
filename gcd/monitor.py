@@ -188,5 +188,9 @@ class JsonLogStore(PgStore):
         execute('CREATE TABLE IF NOT EXISTS %s (log jsonb)' % self._table)
         execute("""
                 CREATE INDEX IF NOT EXISTS logs_created_index
-                ON %s (((log->>'created')::double precision))
-                """ % self._table)
+                ON %s ((to_timestamp((log->>'created')::double precision)));
+                CREATE INDEX IF NOT EXISTS logs_name_levelname_created_index
+                ON %s ((log->>'name'),
+                       (log->>'levelname'),
+                       (to_timestamp((log->>'created')::double precision)));
+                """ % (self._table, self._table))
