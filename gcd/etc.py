@@ -10,6 +10,9 @@ from contextlib import contextmanager
 logger = logging.getLogger(__name__)
 
 
+kb, mb, gb, tb = 1024, 1024**2, 1024**3, 1024**4
+
+
 def new(call):
     if type(call) is type:
         call.__reduce__ = lambda self: call.__qualname__
