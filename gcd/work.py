@@ -19,13 +19,22 @@ default_period = 1
 
 class Process(mp.Process):
 
+    init = None
+
     def __init__(self, target, *args, daemon=True, **kwargs):
-        super().__init__(target=target, daemon=daemon, args=args,
-                         kwargs=kwargs)
+        super().__init__(target=self._wrapper, daemon=daemon,
+                         args=(self.init, target, *args), kwargs=kwargs)
 
     def start(self):
         super().start()
         return self
+
+    @staticmethod  # Must be pickleable.
+    def _wrapper(init, target, *args, **kwargs):
+        if init:
+            Process.init = init  # Recursively propagate init.
+            init()
+        target(*args, **kwargs)
 
 
 class Thread(mt.Thread):
