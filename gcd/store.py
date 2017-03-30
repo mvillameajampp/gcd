@@ -165,6 +165,7 @@ class PgVacuumer:
                         ALTER TABLE %s SET (autovacuum_enabled = %s,
                                             toast.autovacuum_enabled = %s)
                         """ % (self._table, enable, enable))
+        return self
 
     def _size(self):
         with Transaction(self._conn_or_pool):
