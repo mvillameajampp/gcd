@@ -157,6 +157,15 @@ class PgVacuumer:
         Task(self._period, self._vacuum).start()
         return self
 
+    def auto(self, enable):
+        with self._lock:
+            enable = 'true' if enable else 'false'
+            with Transaction(self._conn_or_pool):
+                execute("""
+                        ALTER TABLE %s SET (autovacuum_enabled = %s,
+                                            toast.autovacuum_enabled = %s)
+                        """ % (self._table, enable, enable))
+
     def _size(self):
         with Transaction(self._conn_or_pool):
             size, = next(
