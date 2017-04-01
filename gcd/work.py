@@ -12,7 +12,7 @@ from gcd.chronos import as_timer, span
 
 logger = logging.getLogger(__name__)
 
-default_hwm = 5000
+default_hwm = 10000
 
 default_period = 1
 
