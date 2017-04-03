@@ -82,6 +82,10 @@ def product(iterable, start=1):
     return reduce(operator.mul, iterable, start)
 
 
+def unzip(iterable, n=2):
+    return tuple(zip(*iterable)) or ((),) * n
+
+
 def repeat_call(func, *args, until=Default, times=None, **kwargs):
     for i in range(times) if times else count():
         obj = func(*args, **kwargs)
