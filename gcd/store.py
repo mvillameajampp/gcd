@@ -15,8 +15,8 @@ from unittest import TestCase
 from operator import attrgetter
 from psycopg2.pool import ThreadedConnectionPool
 
-from gcd.etc import identity, attrsetter, snippet
-from gcd.chronos import span
+from gcd.etc import identity, attrsetter, snippet, Bundle
+from gcd.chronos import span, Timer
 from gcd.nix import sh
 from gcd.work import Task
 
@@ -138,60 +138,96 @@ class PgVacuumer:
 
     semaphore = None
 
-    def __init__(self, table, period=span(minutes=10),
-                 size_period=span(minutes=1), full_size=None,
-                 full_rate=0.01, semaphore=None, conn_or_pool=None):
+    def __init__(self, table, period=span(minutes=10), ratio=0.2,
+                 full_period=span(hours=10), full_ratio=0.2, full_size=None,
+                 semaphore=None, conn_or_pool=None):
         self._table = table
         self._period = period
-        self._size_period = size_period
+        self._ratio = ratio
+        self._full_period = full_period
+        self._full_ratio = full_ratio
         self._full_size = full_size
-        self._full_rate = full_rate
         self._full_next = 0
         self._semaphore = semaphore or self.semaphore
         self._conn_or_pool = conn_or_pool
-        self._lock = mt.Lock()
-
-    def start(self):
-        self._size()
-        Task(self._size_period, self._size).start()
-        Task(self._period, self._vacuum).start()
-        return self
+        self.stats = None
 
     def auto(self, enable):
-        with self._lock:
-            enable = 'true' if enable else 'false'
-            with Transaction(self._conn_or_pool):
-                execute("""
-                        ALTER TABLE %s SET (autovacuum_enabled = %s,
-                                            toast.autovacuum_enabled = %s)
-                        """ % (self._table, enable, enable))
+        enable = 'true' if enable else 'false'
+        with Transaction(self._conn_or_pool):
+            execute("""
+                    ALTER TABLE %s SET (autovacuum_enabled = %s,
+                                        toast.autovacuum_enabled = %s)
+                    """ % (self._table, enable, enable))
         return self
 
-    def _size(self):
-        with Transaction(self._conn_or_pool):
-            size, = next(
-                execute('SELECT pg_relation_size(%s)', (self._table,)))
-            self.too_big = self._full_size and size > self._full_size
-        if self.too_big:
-            now = time.time()
-            if now > self._full_next:
-                log = logging.getLogger('PgVacuumer')
-                log.warning('Table %s is too big (%sb), running full vacuum.',
-                            self._table, size)
-                self._vacuum(full=True)
-                self._full_next = now + (time.time() - now) / self._full_rate
-                log.info('Table %s full vacuumed.', self._table)
+    def start(self):
+        now = time.time()
+        Task(Timer(self._period, start_at=now), self._callback).start()
+        return self
 
-    def _vacuum(self, full=False):
-        with self._lock:
-            self._semaphore and self._semaphore.acquire()
-            try:
+    def _callback(self):
+        if self.stats is None:
+            self._vacuum('ANALYZE')
+            self.stats = self._stats()
+        else:
+            logger = logging.getLogger('PgVacuumer')
+            self.stats = stats = self._stats()
+            vacuum_type = None
+            now = time.time()
+            if (now > self._full_next and
+                    stats.table_size > self._full_size and
+                    stats.free_ratio > self._full_ratio):
+                logger.warning(
+                    'Table %s is too big (%sb), running full vacuum.',
+                    self._table, stats.table_size)
+                self._full_next = now + self._full_period
+                vacuum_type = 'FULL'
+            elif stats.dead_ratio > self._ratio:
+                vacuum_type = 'ANALYZE'
+            if vacuum_type:
+                self._vacuum(vacuum_type)
+                self.stats = self._stats(tuple_size=False)
+                logger.info('Vacuum reduced dead/total to %s',
+                            self.stats.dead_ratio)
+
+    def _vacuum(self, vacuum_type):
+        self._semaphore and self._semaphore.acquire()
+        try:
+            with Transaction(self._conn_or_pool):
+                execute('END')  # End transaction opened by psycopg2.
+                execute('VACUUM %s %s' % (vacuum_type, self._table))
+        finally:
+            self._semaphore and self._semaphore.release()
+
+    def _stats(self, tuple_size=True):
+        stats = Bundle(tuple_size=None)
+        with Transaction(self._conn_or_pool):
+            stats.table_size, stats.live_tuples, stats.dead_tuples = execute(
+
+                """
+                SELECT pg_relation_size('%s'), n_live_tup, n_dead_tup
+                FROM pg_stat_user_tables WHERE relname = '%s'
+                """ % (self._table, self._table)).fetchone()
+        stats.total_tuples = stats.live_tuples + stats.dead_tuples
+        stats.dead_ratio = stats.dead_tuples / (stats.total_tuples or 1)
+        if tuple_size and stats.total_tuples >= 20:
+            n = 500
+            sr = 100 * n / max(stats.total_tuples, n)
+            for clause in 'TABLESAMPLE SYSTEM(%s)' % sr, 'LIMIT %s' % n:
                 with Transaction(self._conn_or_pool):
-                    execute('END')  # End transaction opened by psycopg2.
-                    execute('VACUUM %s %s' % (
-                        'FULL' if full else 'ANALYZE', self._table))
-            finally:
-                self._semaphore and self._semaphore.release()
+                    stats.tuple_size, = execute(
+                        """
+                        SELECT avg(t.s) FROM (
+                            SELECT pg_column_size(t.*) AS s FROM %s t %s) t
+                        """ % (self._table, clause)).fetchone()
+                    if stats.tuple_size is not None:
+                        break
+        stats.used_space = min(stats.table_size,
+                               (stats.tuple_size or 0) * stats.total_tuples)
+        stats.free_space = stats.table_size - stats.used_space
+        stats.free_ratio = stats.free_space / (stats.table_size or 1)
+        return stats
 
 
 class PgFlattener:
