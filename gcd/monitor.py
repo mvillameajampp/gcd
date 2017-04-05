@@ -1,4 +1,3 @@
-import time
 import json
 import logging
 import traceback
@@ -7,56 +6,78 @@ import multiprocessing as mp
 
 from collections import defaultdict
 from contextlib import contextmanager
+from time import perf_counter, time as time_
 
 from gcd.work import Batcher
 from gcd.store import PgStore, execute
 from gcd.chronos import as_memory
 
 
+class Forgetter:
+
+    def __init__(self, memory):
+        self.memory = as_memory(memory)
+        self.max_time = None
+
+    def forget(self, weight=1, time=None):
+        time = time or time_()
+        max_time = self.max_time or time
+        delta = time - max_time
+        if delta >= 0:
+            a, b = self.memory ** delta, weight
+            self.max_time = time
+        else:
+            a, b = 1, weight * self.memory ** -delta
+        self.a, self.b = a, b
+
+
 class Statistics:
 
-    def __init__(self, memory=1):
-        self.memory = as_memory(memory)
-        self.n = self._sum = self._sqsum = self._sqmean = 0
-        self.min = float('inf')
-        self.max = -float('inf')
-        self._max_time = None
-
-    def add(self, x, x_time=None, x_weight=1):
-        if x_time is None:
-            x_time = time.time()
-        max_time = x_time if self._max_time is None else self._max_time
-        delta = x_time - max_time
-        if delta >= 0:
-            m, w = self.memory ** delta, x_weight
-            self._max_time = x_time
+    def __init__(self, memory=1, full=False):
+        self._shared_forgetter = isinstance(memory, Forgetter)
+        if self._shared_forgetter:
+            self.forgetter = memory
         else:
-            m, w = 1, x_weight * self.memory ** -delta
-        wx = w * x
-        self.n = m * self.n + w
-        self._sum = m * self._sum + wx
+            self.forgetter = Forgetter(memory) if memory != 1 else None
+        self.n = self.mean = 0
+        if full:
+            self._sqdelta = 0
+            self.min = float('inf')
+            self.max = -float('inf')
+        self._full = full
+
+    def add(self, x, weight=1, time=None):
+        forgetter = self.forgetter
+        if forgetter:
+            if not self._shared_forgetter:
+                forgetter.forget(weight, time)
+            a, b = forgetter.a, forgetter.b
+        else:
+            a, b = 1, weight
         # https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance
-        # #Online_algorithm
-        delta = x - self._sqmean
-        self._sqmean = m * self._sqmean + w * delta / self.n
-        self._sqsum = m * self._sqsum + w * delta * (x - self._sqmean)
-        self.min = min(m * self.min, wx)
-        self.max = max(m * self.max, wx)
+        # #Online_algorithm (Welford)
+        self.n = a * self.n + b
+        delta = x - self.mean
+        self.mean += b * delta / self.n
+        if self._full:
+            delta2 = x - self.mean
+            self._sqdelta = a * self._sqdelta + b * delta * delta2
+            self.min = min(a * self.min, b * x)
+            self.max = max(a * self.max, b * x)
         return self
 
     @property
-    def mean(self):
-        if self.n > 0:
-            return self._sum / self.n
+    def sum(self):
+        return self.mean * self.n
 
     @property
     def stdev(self):
-        if self.n > 1:
-            return (self._sqsum / (self.n - 1)) ** 0.5
+        if self.n > 0:
+            return (self._sqdelta / self.n) ** 0.5
 
     def as_dict(self):
-        return {a: getattr(self, a)
-                for a in ('n', 'mean', 'stdev', 'min', 'max')}
+        full_attrs = ('stdev', 'min', 'max') if self._full else ()
+        return {a: getattr(self, a) for a in ('n', 'mean') + full_attrs}
 
 
 class Monitor(defaultdict):
@@ -65,20 +86,20 @@ class Monitor(defaultdict):
         super().__init__(int)
         self._info_base = info_base
 
-    def stats(self, *names, memory=1):
+    def stats(self, *names, memory=1, full=False):
         stats = self.get(names)
         if stats is None:
-            stats = self[names] = Statistics(memory)
+            stats = self[names] = Statistics(memory, full)
         return stats
 
     @contextmanager
-    def timeit(self, *names, memory=1):
-        t0 = time.perf_counter()
+    def timeit(self, *names, memory=1, full=True):
+        t0 = perf_counter()
         try:
             yield
         finally:
-            t1 = time.perf_counter()
-            self.stats(*names, memory=memory).add(t1 - t0)
+            t1 = perf_counter()
+            self.stats(*names, memory=memory, full=full).add(t1 - t0)
 
     def info(self):
         info = self._info_base.copy()

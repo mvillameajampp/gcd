@@ -1,39 +1,47 @@
 import logging
 import json
 import io
-import statistics
 
 from unittest import TestCase, main
-from unittest.mock import patch
 
-from gcd.monitor import JsonFormatter, Statistics
-from gcd.chronos import span
+from gcd.monitor import JsonFormatter, Statistics, Forgetter
 
 
 class TestStatistics(TestCase):
 
     def test(self):
-        xs = 1, 2, 3
-        stats = Statistics()
-        for x in xs:
-            stats.add(x)
-        self.assertEqual(stats.mean, statistics.mean(xs))
-        self.assertEqual(stats.stdev, statistics.stdev(xs))
-        self.assertEqual(stats.min, min(xs))
-        self.assertEqual(stats.max, max(xs))
-        self.assertEqual(stats.n, len(xs))
+        xs = 1, 2, 3, 4
+        ws = 1, 2, 1, 2
+        ts = 19, 5, 1, 20
+        memory = 0.9
 
-    @patch('gcd.monitor.time')
-    def test_memory(self, time_):
-        time_.time.return_value = 0
-        stats = Statistics((0.5, span(days=1)))
-        stats.add(2)
-        time_.time.return_value = span(days=1)
-        stats.add(3)
-        stats.add(4, 0)
-        n = 0.5 + 1 + 0.5
-        self.assertAlmostEqual(stats.mean, (2 * 0.5 + 3 + 4 * 0.5) / n)
-        self.assertAlmostEqual(stats.n, n)
+        ms = [w * memory**(max(ts) - t) for w, t in zip(ws, ts)]
+        en = sum(ms)
+        emean = sum(x * m for x, m in zip(xs, ms)) / en
+        estdev = (sum((x - emean)**2 * m for x, m in zip(xs, ms)) / en)**0.5
+        emin = min(x * m for x, m in zip(xs, ms))
+        emax = max(x * m for x, m in zip(xs, ms))
+
+        stats = Statistics(memory, True)
+        for x, w, t in zip(xs, ws, ts):
+            stats.add(x, w, t)
+        self.assertAlmostEqual(stats.n, en)
+        self.assertAlmostEqual(stats.mean, emean)
+        self.assertAlmostEqual(stats.stdev, estdev)
+        self.assertAlmostEqual(stats.min, emin)
+        self.assertAlmostEqual(stats.max, emax)
+
+        forgetter = Forgetter(memory)
+        stats = Statistics(forgetter, True)
+        for x, w, t in zip(xs, ws, ts):
+            forgetter.forget(w, t)
+            stats.add(x)
+        self.assertAlmostEqual(stats.n, en)
+        self.assertAlmostEqual(stats.mean, emean)
+        self.assertAlmostEqual(stats.stdev, estdev)
+        self.assertAlmostEqual(stats.min, emin)
+        self.assertAlmostEqual(stats.max, emax)
+
 
 
 class TestJsonFormatter(TestCase):
