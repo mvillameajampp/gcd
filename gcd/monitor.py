@@ -13,6 +13,18 @@ from gcd.store import PgStore, execute
 from gcd.chronos import as_memory
 
 
+def forget(memory, max_time, weight, time):
+    time = time or time_()
+    max_time = max_time or time
+    delta = time - max_time
+    if delta >= 0:
+        a, b = memory ** delta, weight
+        max_time = time
+    else:
+        a, b = 1, weight * memory ** -delta
+    return a, b, max_time
+
+
 class Forgetter:
 
     def __init__(self, memory):
@@ -20,15 +32,8 @@ class Forgetter:
         self.max_time = None
 
     def forget(self, weight=1, time=None):
-        time = time or time_()
-        max_time = self.max_time or time
-        delta = time - max_time
-        if delta >= 0:
-            a, b = self.memory ** delta, weight
-            self.max_time = time
-        else:
-            a, b = 1, weight * self.memory ** -delta
-        self.a, self.b = a, b
+        self.a, self.b, self.max_time = forget(
+            self.memory, self.max_time, weight, time)
 
 
 class Statistics:
