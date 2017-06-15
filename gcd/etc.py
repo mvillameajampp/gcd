@@ -70,6 +70,10 @@ def nop(*args, **kwargs):
     pass
 
 
+def coalesce(obj, default):
+    return default if obj is None else obj
+
+
 def attrsetter(name):
     return lambda obj, value: setattr(obj, name, value)
 
