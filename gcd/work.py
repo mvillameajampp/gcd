@@ -6,7 +6,7 @@ import threading as mt
 from math import inf
 from queue import Empty, Queue
 
-from gcd.etc import identity, repeat_call, new
+from gcd.etc import identity, new
 from gcd.chronos import as_timer, span
 
 
@@ -135,9 +135,9 @@ class Streamer(Task):
                 return Task.Stop
 
 
-def new_queue(hwm=None, shared=False):
+def new_queue(hwm=None, shared=False, pack=1):
     queue_class = mp.Queue if shared else Queue
-    return queue_class(hwm or default_hwm)
+    return queue_class(int((hwm or default_hwm) / pack))
 
 
 def dequeue(queue, at_least=0, at_most=None):
@@ -151,12 +151,7 @@ def dequeue(queue, at_least=0, at_most=None):
         pass
 
 
-def iter_queue(queue, until=None, times=None):
-    return repeat_call(queue.get, until=until, times=times)
-
-
-def sorted_queue(queue, item=identity, log_period=span(minutes=5),
-                 max_ooo=None):
+def sorter(get, item=identity, log_period=span(minutes=5), max_ooo=None):
     max_ooo = max_ooo or default_hwm
     if max_ooo < inf and log_period:
         def log():
@@ -169,7 +164,7 @@ def sorted_queue(queue, item=identity, log_period=span(minutes=5),
     max_seq = -1
     out_seq = seen = lost = 0
     while True:
-        seq, data = item(queue.get())
+        seq, data = item(get())
         seen += 1
         if seq < out_seq:
             continue
@@ -183,3 +178,24 @@ def sorted_queue(queue, item=identity, log_period=span(minutes=5),
             out_seq = seq + 1
             heapq.heappop(heap)
             yield seq, data
+
+
+def packer(put, size):
+    def wrapper(*obj, flush=False):
+        nonlocal pack
+        pack.extend(obj)
+        if flush or len(pack) >= size:
+            put(pack)
+            pack = []
+    pack = []
+    return wrapper
+
+
+def unpacker(get):
+    def wrapper():
+        nonlocal pack
+        if not pack:
+            pack = get()
+        return pack.pop(0)
+    pack = None
+    return wrapper
