@@ -134,7 +134,7 @@ def pylint(omit=[]):
     def lint():
         'Run flake8 linter.'
         yield
-        sh("shopt -s globstar; flake8 -v --exclude '%s' --ignore E306 "
+        sh("shopt -s globstar; flake8 --exclude '%s' --ignore E306 "
            "**/*.py || true" % ','.join(as_many(omit)))
     return lint
 
