@@ -43,22 +43,18 @@ class TestTask(TestCase):
 class TestLeakyBucket(TestCase):
 
     def test(self):
-        bucket = LeakyBucket(20)
+        bucket = LeakyBucket(20, 2)
+        self.assertTrue(bucket.use())
+        self.assertTrue(bucket.use())
+        self.assertFalse(bucket.use())
         t0 = time.time()
         bucket.wait()
-        t1 = time.time()
-        bucket.wait()
-        t2 = time.time()
-        time.sleep(0.05)
-        t3 = time.time()
-        bucket.wait()
-        t4 = time.time()
-        bucket.wait()
-        t5 = time.time()
-        self.assertAlmostEqual(t1 - t0, 0, delta=0.01)
-        self.assertAlmostEqual(t2 - t1, 0.05, delta=0.01)
-        self.assertAlmostEqual(t4 - t3, 0, delta=0.01)
-        self.assertAlmostEqual(t5 - t4, 0.05, delta=0.01)
+        self.assertAlmostEqual(time.time() - t0, 0.05, places=3)
+        self.assertTrue(bucket.use())
+        self.assertFalse(bucket.use())
+        t0 = time.time()
+        bucket.wait(2)
+        self.assertAlmostEqual(time.time() - t0, 0.1, places=3)
 
 
 if __name__ == '__main__':
