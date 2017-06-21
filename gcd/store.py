@@ -272,12 +272,11 @@ class PgTestCase(TestCase):
     db = 'test'
 
     def setUp(self):
-        sh('dropdb --if-exists %s &> /dev/null' % self.db)
-        sh('createdb %s' % self.db)
+        sh(('dropdb --if-exists %s &> /dev/null', self.db))
+        sh(('createdb %s', self.db))
 
     def tearDown(self):
-        # Try to kill it in bg because some conns might still be open.
-        sh('dropdb %s &' % self.db)
+        sh(('dropdb %s', self.db))
 
     def connect(self, **kwargs):
         return psycopg2.connect(dbname=self.db, **kwargs)
