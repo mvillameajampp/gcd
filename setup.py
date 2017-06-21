@@ -1,6 +1,6 @@
 from setuptools import setup
 
-from gcd.meka import cmd, pylint, pytest, meka
+from gcd.meka import cmd, pylint, pytest
 
 
 cmd.sub(pylint())

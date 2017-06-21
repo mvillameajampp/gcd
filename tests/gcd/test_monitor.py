@@ -43,7 +43,6 @@ class TestStatistics(TestCase):
         self.assertAlmostEqual(stats.max, emax)
 
 
-
 class TestJsonFormatter(TestCase):
 
     def test_msg(self):
