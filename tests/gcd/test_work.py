@@ -4,8 +4,7 @@ import queue
 from unittest import TestCase, main
 from itertools import islice
 
-from gcd.work import (Thread, Task, Batcher, Streamer, dequeue, iter_queue,
-                      sorted_queue)
+from gcd.work import Thread, Task, Batcher, Streamer, dequeue, sorted_queue
 
 
 class TestWorkers(TestCase):
@@ -82,13 +81,6 @@ class TestQueues(TestCase):
         self.assertEqual(list(dequeue(q, 2)), [2, 3])
         time.sleep(0.05)
         self.assertEqual(list(dequeue(q, at_most=1)), [4])
-
-    def test_iter_queue(self):
-        q = queue.Queue()
-        for i in range(10):
-            q.put(i)
-        self.assertEqual(list(iter_queue(q, until=5)), [0, 1, 2, 3, 4])
-        self.assertEqual(list(iter_queue(q, times=3)), [6, 7, 8])
 
     def test_sorted_queue(self):
         msgs = [(2, 'c'), (0, 'a'), (1, 'b'), (6, 'g'),
