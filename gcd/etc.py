@@ -2,6 +2,7 @@ import operator
 import logging
 import ctypes as ct
 
+from math import inf
 from itertools import islice, chain, count
 from functools import reduce, lru_cache
 from contextlib import contextmanager
@@ -151,17 +152,19 @@ def load_pyconfig(file_or_path, config=None):
     return config
 
 
-def retry_on(errors, attempts=None):  # TODO add reset and throttle periods.
+def retry_on(errors, attempts=inf):  # TODO add reset and throttle periods.
     def decorator(fun):
         def wrapper(*args, **kwargs):
-            for i in range(attempts) if attempts else count():
+            i = 0
+            while i < attempts:
                 try:
                     return fun(*args, **kwargs)
                 except Exception as error:
-                    if not is_retryable(error):
+                    i += 1
+                    if not is_retryable(error) or i == attempts:
                         raise
                     logger.exception('Retrying %s, %s/%s attempts' %
-                                     (fun.__name__, i + 1, attempts))
+                                     (fun.__name__, i, attempts))
         return wrapper
     if not callable(errors):
         def is_retryable(error):
