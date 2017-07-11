@@ -47,18 +47,21 @@ class TestFunctions(TestCase):
                 raise ValueError
             if ncalls < 6:
                 raise KeyError
-            raise TypeError
         logger = logging.getLogger()
         level = logger.level
         try:
             logger.setLevel(logging.CRITICAL)
-            ncalls = 0
-            retry_on((ValueError, KeyError), 5)(f)()
-            self.assertEqual(ncalls, 5)
-            with self.assertRaises(TypeError):
+            with self.assertRaises(KeyError):
                 ncalls = 0
-                retry_on((ValueError, KeyError), 15)(f)()
-                self.assertEqual(ncalls, 6)
+                retry_on(ValueError, 5)(f)()
+                self.assertEqual(ncalls, 3)
+            with self.assertRaises(KeyError):
+                ncalls = 0
+                retry_on((ValueError, KeyError), 5)(f)()
+                self.assertEqual(ncalls, 5)
+            ncalls = 0
+            retry_on((ValueError, KeyError), 7)(f)()
+            self.assertEqual(ncalls, 6)
         finally:
             logger.setLevel(level)
 

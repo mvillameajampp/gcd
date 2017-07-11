@@ -274,15 +274,22 @@ class PgTestCase(TestCase):
     def setUp(self):
         sh(('{ dropdb --if-exists %s &> /dev/null; } || true', self.db))
         sh(('createdb %s', self.db))
+        self._to_close = []
 
     def tearDown(self):
+        for conn_or_pool in self._to_close:
+            conn_or_pool.close()
         sh(('{ dropdb %s &> /dev/null; } || true', self.db))
 
     def connect(self, **kwargs):
-        return psycopg2.connect(dbname=self.db, **kwargs)
+        conn = psycopg2.connect(dbname=self.db, **kwargs)
+        self._to_close.append(conn)
+        return conn
 
     def pool(self, **kwargs):
-        return PgConnectionPool(dbname=self.db, **kwargs)
+        pool = PgConnectionPool(dbname=self.db, **kwargs)
+        self._to_close.append(pool)
+        return pool
 
 
 def allot(seqs, base=None, capacity=None):
