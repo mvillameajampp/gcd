@@ -75,6 +75,10 @@ def coalesce(obj, default):
     return default if obj is None else obj
 
 
+def clip(value, min_value=-inf, max_value=-inf):
+    return max(min_value, min(value, max_value))
+
+
 def attrsetter(name):
     return lambda obj, value: setattr(obj, name, value)
 
