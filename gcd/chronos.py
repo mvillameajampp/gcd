@@ -47,6 +47,10 @@ def set_timezone(timezone=None):
     time.tzset()
 
 
+def as_datetime(ts):
+    return datetime.fromtimestamp(ts)
+
+
 def as_memory(memory):
     try:
         memory, period = memory
