@@ -35,6 +35,9 @@ class Cache:
         else:
             return entry.val
 
+    def items(self):
+        return ((k, e.val) for k, e in self._cache.items() if e.val is not NA)
+
     def clean_up(self):
         now = time.time()
         self._cache = {key: entry for key, entry in self._cache.items()
