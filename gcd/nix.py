@@ -7,6 +7,8 @@ import argparse
 
 from contextlib import contextmanager
 
+from gcd.etc import as_file
+
 
 env = os.environ
 path = os.path
@@ -67,8 +69,8 @@ def cat(path):
 
 
 @contextmanager
-def flock(path, shared=False):
-    with open(path, 'w') as lock:
+def flock(file_or_path, shared=False):
+    with as_file(file_or_path, 'a') as lock:
         fcntl.flock(lock, fcntl.LOCK_SH if shared else fcntl.LOCK_EX)
         try:
             yield
