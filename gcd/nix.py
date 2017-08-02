@@ -69,13 +69,13 @@ def cat(path):
 
 
 @contextmanager
-def flock(file_or_path, shared=False):
-    with as_file(file_or_path, 'a') as lock:
-        fcntl.flock(lock, fcntl.LOCK_SH if shared else fcntl.LOCK_EX)
+def flock(file_or_path, mode='a', shared=False):
+    with as_file(file_or_path, mode) as file:
+        fcntl.flock(file, fcntl.LOCK_SH if shared else fcntl.LOCK_EX)
         try:
-            yield
+            yield file
         finally:
-            fcntl.flock(lock, fcntl.LOCK_UN)
+            fcntl.flock(file, fcntl.LOCK_UN)
 
 
 @contextmanager
