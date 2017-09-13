@@ -228,7 +228,8 @@ if sys.argv[0].endswith('setup.py') or (sys.argv[0] == '-c' and
                 else:
                     long_opt = opt
             opt_arg = '=' if action.nargs != 0 else ''
-            opt_help = action.help[0].lower() + action.help[1:].rstrip('.')
+            opt_help = (action.help[0].lower() + action.help[1:].rstrip('.')
+                        if action.help else None)
             self._opts[long_opt] = long_opt + opt_arg, short_opt, opt_help
 
         def sub(self, fun, *, name=None, doc=None, base=Command,
