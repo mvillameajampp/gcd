@@ -3,11 +3,10 @@ import sys
 import shelve
 import textwrap
 
-from itertools import chain
 from distutils.core import Extension
 from distutils.command.build_ext import build_ext as build_ext_
 
-from gcd.etc import as_many, template
+from gcd.etc import template
 from gcd.nix import sh as _sh, cmd, as_cmd, path, argv
 
 
@@ -15,24 +14,19 @@ def rule(fun):
     def wrapper(*args, **kwargs):
         code = fun.__code__.co_code
         gen = fun(*args, **kwargs)
-        paths = next(gen)
-        if type(paths) is str:
-            inputs, output = [], paths
-        else:
-            *inputs, output = paths
-        mtimes = {i: path.getmtime(i)
-                  for i in chain.from_iterable(map(as_many, inputs))}
+        inputs, outputs = next(gen)
+        mtimes = {i: path.getmtime(i) for i in inputs}
+        mtimes.update((o, path.getmtime(o)) for o in outputs if path.exists(o))
+        key = '@@'.join(sorted(outputs))
         with shelve.open(_memo) as memo:
-            if path.exists(output) and output in memo:
-                mtimes[output] = path.getmtime(output)
-                if memo[output] == (code, args, kwargs, mtimes):
-                    return
+            if memo.get(key) == (code, args, kwargs, mtimes):
+                return
             try:
                 next(gen)
             except StopIteration:
                 pass
-            mtimes[output] = path.getmtime(output)
-            memo[output] = code, args, kwargs, mtimes
+            mtimes.update((o, path.getmtime(o)) for o in outputs)
+            memo[key] = code, args, kwargs, mtimes
     return wrapper
 
 
@@ -72,7 +66,7 @@ def sh(cmd, input=None):
 
 @rule
 def render(tmpl, output, context={}, **kwargs):
-    yield tmpl, output
+    yield [tmpl], [output]
     with open(output, 'w') as out_file:
         out_file.write(template(tmpl, **kwargs).render(context))
 
@@ -86,7 +80,7 @@ def ccompile(source, output='%(base)s.%(ext)s', incs=[], libs=[], inc_dirs=[],
     output_base = path.splitext(source)[0]
     output_ext = '.so' if shared else '.o'
     output %= {'base': output_base, 'ext': output_ext}
-    yield source, incs, output
+    yield [source, incs], [output]
     if capi:
         base = path.dirname(path.dirname(path.abspath(sys.executable)))
         python = 'python' + sys.version[:3]

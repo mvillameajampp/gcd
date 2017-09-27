@@ -11,7 +11,7 @@ from gcd.meka import rule
 @rule
 def rule1(out='out', in1='in1', ins=['in2', 'in3'], arg=0):
     rule1.called = False
-    yield in1, ins, out
+    yield [in1, *ins], [out]
     touch(out)
     rule1.called = True
 
@@ -19,7 +19,7 @@ def rule1(out='out', in1='in1', ins=['in2', 'in3'], arg=0):
 @rule
 def rule2(out='out'):
     rule2.called = False
-    yield out
+    yield [], [out]
     touch(out)
     rule2.called = True
 
