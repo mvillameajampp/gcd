@@ -4,9 +4,11 @@ import shelve
 import textwrap
 
 from itertools import chain
+from distutils.core import Extension
+from distutils.command.build_ext import build_ext as build_ext_
 
 from gcd.etc import as_many, template
-from gcd.nix import sh as _sh, sh_quote, cmd, as_cmd, path, argv
+from gcd.nix import sh as _sh, cmd, as_cmd, path, argv
 
 
 def rule(fun):
@@ -130,50 +132,6 @@ def gen(tmpl, **kwargs):
     return gen
 
 
-def pylint(omit=[]):
-    def lint():
-        'Run flake8 linter.'
-        yield
-        sh("shopt -s globstar; flake8 --exclude '%s' --ignore E306 "
-           "**/*.py || true" % ','.join(as_many(omit)))
-    return lint
-
-
-def pytest(cov_pkgs, cov_omit=[]):
-    def test():
-        'Run unit tests.'
-
-        cmd.arg('--pattern', '-p', help='Only run tests matching pattern.')
-        cmd.arg('--integration', '-i', action='store_true',
-                help='Also run integration tests (itest_*.py pattern).')
-        cmd.arg('--coverage', '-c', action='store_true',
-                help='Show coverage report after testing.')
-        yield
-
-        def sh_test(pattern, append=False):
-            if args.coverage:
-                prefix = "coverage run %s--source='%s' --omit='%s'" % (
-                    '-a ' if append else '',
-                    ','.join(as_many(cov_pkgs)),
-                    ','.join(as_many(cov_omit)))
-            else:
-                prefix = 'python'
-            sh("%s -m unittest discover -v -t . -s tests -p %s || true" %
-               (prefix, sh_quote(pattern)))
-
-        args = cmd.args
-        pattern = args.pattern if args.pattern else 'test_*.py'
-        code = sh_test(pattern)
-        if args.integration and not args.pattern:
-            code = code or sh_test('itest_*.py', True)
-        if args.coverage:
-            sh('coverage report')
-        if code != 0:
-            sys.exit(1)
-
-    return test
-
-
 def build(builder, modules):
     def build():
         'Build binary extensions.'
@@ -199,73 +157,25 @@ def clean(*paths):
     return clean
 
 
-# ------------------------- Distutils wrapper ---------------------------------
+# ------------------------------ Disutils -------------------------------------
 
 
-# Not bullet-proof but pip executes python -c "import setuptools...
-if sys.argv[0].endswith('setup.py') or (sys.argv[0] == '-c' and
-                                        'setuptools' in sys.modules):
+class CExtension(Extension):
 
-    import argparse
+    pass
 
-    from distutils.core import Command, DistutilsOptionError
 
-    class SetupCommand:
+class build_ext(build_ext_):
 
-        def __init__(self):
-            self.cmdclass = {}
+    def get_export_symbols(self, ext):
+        if isinstance(ext, CExtension):
+            return ext.export_symbols
+        else:
+            return super().get_export_symbols(ext)
 
-        def arg(self, *args, **kwargs):
-            if not args[0].startswith('-'):  # Convert positional to option.
-                args = ('--' + args[0],)
-                kwargs['required'] = True
-            action = self._parser.add_argument(*args, **kwargs)
-            short_opt = long_opt = None
-            for opt in action.option_strings:
-                opt = opt.lstrip('-')
-                if len(opt) == 1:
-                    short_opt = opt
-                else:
-                    long_opt = opt
-            opt_arg = '=' if action.nargs != 0 else ''
-            opt_help = (action.help[0].lower() + action.help[1:].rstrip('.')
-                        if action.help else None)
-            self._opts[long_opt] = long_opt + opt_arg, short_opt, opt_help
-
-        def sub(self, fun, *, name=None, doc=None, base=Command,
-                run_super=True):
-            opts = self._opts = {}
-            parser = self._parser = argparse.ArgumentParser(add_help=False)
-            def error(msg):
-                raise DistutilsOptionError(msg)
-            parser.error = error
-            gen = fun()
-            next(gen)  # Execute 1st phase: register args.
-            class Wrapper(base):
-                description = (doc or fun.__doc__ or
-                               getattr(base, 'description', None))
-                user_options = (getattr(base, 'user_options', []) +
-                                list(opts.values()))
-                def initialize_options(wrapper):
-                    if base is not Command:
-                        base.initialize_options(wrapper)
-                    wrapper.__dict__.update(dict.fromkeys(opts))
-                def finalize_options(wrapper):
-                    parser.parse_known_args(sys.argv, namespace=wrapper)
-                    wrapper.quiet = not wrapper.verbose
-                    if base is not Command:
-                        base.finalize_options(wrapper)
-                def run(wrapper):
-                    self.self = self.args = wrapper
-                    next(gen, None)  # Execute 2nd phase: the command itself.
-                    if base is not Command and run_super:
-                        base.run(wrapper)
-            Wrapper.__name__ = name or (
-                base.__name__ if base is not Command else fun.__name__)
-            self.cmdclass[Wrapper.__name__] = Wrapper
-            return Wrapper
-
-        def extend(self, base):
-            return lambda fun: self.sub(fun, base=base)
-
-    cmd = SetupCommand()  # noqa
+    def get_ext_fullpath(self, ext_name):
+        ext = next(e for e in self.extensions if e.name == ext_name)
+        if isinstance(ext, CExtension):
+            return ext_name
+        else:
+            return super().get_ext_fullpath(ext_name)
