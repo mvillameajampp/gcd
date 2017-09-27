@@ -106,16 +106,6 @@ def ccompile(source, output='%(base)s.%(ext)s', incs=[], libs=[], inc_dirs=[],
     sh('%s -o %s %s' % (cmd, output, source))
 
 
-@rule
-def cythonize(source, debug=False, annotate=False):
-    csource = path.splitext(source)[0] + '.c'
-    yield source, csource
-    cmd = 'cython'
-    cmd += ' --gdb' if debug else ''
-    cmd += ' -a' if annotate else ''
-    sh('%s %s' % (cmd, source))
-
-
 # ------------------------------ Commands -------------------------------------
 
 
