@@ -160,6 +160,12 @@ class build_ext(build_ext_):
     def get_ext_fullpath(self, ext_name):
         ext = next(e for e in self.extensions if e.name == ext_name)
         if isinstance(ext, CExtension):
-            return ext_name
+            if not self.inplace:
+                return os.path.join(self.build_lib, ext_name)
+            # the inplace option requires to find the package directory
+            # using the build_py command for that
+            build_py = self.get_finalized_command('build_py')
+            package_dir = os.path.abspath(build_py.get_package_dir(''))
+            return os.path.join(package_dir, ext_name)
         else:
             return super().get_ext_fullpath(ext_name)
