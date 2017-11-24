@@ -24,12 +24,20 @@ from gcd.work import Task
 logger = logging.getLogger(__name__)
 
 
-def execute(sql, args=(), cursor=None, values=False):
-    return _execute('execute', sql, args, cursor, values)
+def execute(sql, args=(), cursor=None, values=False, named=False):
+    return _execute('execute', sql, args, cursor, values, named)
 
 
-def executemany(sql, args, cursor=None):
-    return _execute('executemany', sql, args, cursor, False)
+def executemany(sql, args, cursor=None, named=False):
+    return _execute('executemany', sql, args, cursor, False, named)
+
+
+def named(cursor, rows=None):
+    if rows is None:
+        rows = cursor.fetchall()
+    names = [d[0] for d in cursor.description]
+    for row in rows:
+        yield dict(zip(names, row))
 
 
 class Transaction:
@@ -314,7 +322,7 @@ def allot(seqs, base=None, capacity=None):
     return new_seq, [seq for seq in seqs if seq not in keep_seqs]
 
 
-def _execute(attr, sql, args, cursor, values):
+def _execute(attr, sql, args, cursor, values, named_):
     if cursor is None:
         cursor = Transaction.active().cursor()
     fun = getattr(cursor, attr)
@@ -324,7 +332,7 @@ def _execute(attr, sql, args, cursor, values):
         _debugged(fun, sql, args)
     else:
         fun(sql, args)
-    return cursor
+    return named(cursor) if named_ else cursor
 
 
 def _values(sql, args):  # args can be any iterable.
