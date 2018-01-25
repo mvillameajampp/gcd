@@ -14,11 +14,6 @@ from pprint import PrettyPrinter
 from gcd.nix import flock, sh
 
 try:
-    import builtins
-except ImportError:  # Python 2.
-    import __builtin__ as builtins
-
-try:
     from importlib import reload
 except ImportError:  # Python 2.
     reload = reload
@@ -87,11 +82,6 @@ def rbrk(port=4000, host='localhost'):
 def fbrk():
     fdb = ForkablePdb()
     fdb.set_trace(frame=sys._getframe().f_back)
-
-
-def install_builtins():
-    for attr in __all__:
-        setattr(builtins, attr, globals()[attr])
 
 
 def fixrl():
