@@ -37,7 +37,7 @@ def named(cursor, rows=None):
         rows = cursor.fetchall()
     names = [d[0] for d in cursor.description]
     for row in rows:
-        yield dict(zip(names, row))
+        yield Bundle(zip(names, row))
 
 
 class Transaction:
