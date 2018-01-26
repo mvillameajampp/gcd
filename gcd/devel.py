@@ -5,22 +5,24 @@ import os
 import sys
 import pdb
 import pprint
+import builtins
 import threading as mt
 
 from inspect import currentframe, getframeinfo
+from importlib import reload
 from contextlib import contextmanager
 from pprint import PrettyPrinter
 
 from gcd.nix import flock, sh
 
-try:
-    from importlib import reload
-except ImportError:  # Python 2.
-    reload = reload
-
 
 __all__ = ['reload', 'echo', 'lecho', 'pecho', 'trace', 'brk', 'rbrk', 'fbrk',
            'fixrl']
+
+
+def install_builtins():
+    for attr in __all__:
+        setattr(builtins, attr, globals()[attr])
 
 
 def echo(*args, **kwargs):
