@@ -349,7 +349,8 @@ def _values(sql, args):  # args can be any iterable.
 def _debugged(fun, sql, args):
     query_id = random.randint(0, 10000)
     log_sql = snippet(re.sub(r'[\n\t ]+', ' ', sql[:500]).strip(), 100)
-    log_args = snippet(str(args[:20]), 100)
+    log_args = snippet(str((list(args.items())
+                            if isinstance(args, dict) else args)[:20]), 100)
     logger.debug(dict(query=query_id, sql=log_sql, args=log_args))
     try:
         t0 = time.perf_counter()
