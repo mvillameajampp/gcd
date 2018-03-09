@@ -192,7 +192,7 @@ def template(file_or_path_or_str, **kwargs):
     try:
         with as_file(file_or_path_or_str) as tmpl_file:
             return environment.from_string(tmpl_file.read())
-    except FileNotFoundError:
+    except (FileNotFoundError, OSError):
         return environment.from_string(file_or_path_or_str)
 
 
