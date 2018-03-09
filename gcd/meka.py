@@ -39,7 +39,7 @@ def meka(chdir=True):
     cmd.arg('--quiet', '-q', action='store_true', help='Suppress messages.')
 
 
-def echo(msg):
+def echo(msg, *args, **kwargs):
     if cmd.args.quiet:
         return
     width = 0
@@ -52,7 +52,8 @@ def echo(msg):
     lines = textwrap.wrap(msg, width=width)
     bar = '~' * max(len(l) for l in lines)
     msg = '\n'.join(lines)
-    print('\n\033[1m%s\n%s\n%s\n\033[0m' % (bar, msg, bar), flush=True)
+    print('\n\033[1m%s\n%s\n%s\n\033[0m' % (bar, msg, bar),
+          flush=True, file=sys.stderr, *args, **kwargs)
 
 
 def sh(cmd, input=None):
