@@ -203,3 +203,17 @@ def c_array(*args):
     else:
         c_type, buf = args
         return (c_type * (len(buf) // ct.sizeof(c_type))).from_buffer_copy(buf)
+
+
+def deep_get(obj, path, default=None, abort=False):
+    for name in path.split('.'):
+        try:
+            obj = getattr(obj, name)
+        except AttributeError as err:
+            try:
+                obj = obj[name]
+            except (TypeError, KeyError):
+                if abort:
+                    raise err
+                return default
+    return obj
