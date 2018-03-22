@@ -34,7 +34,7 @@ def executemany(sql, args, cursor=None, named=False):
 
 def named(cursor, rows=None):
     if rows is None:
-        rows = cursor.fetchall()
+        rows = iter(cursor.fetchone, None)
     names = [d[0] for d in cursor.description]
     for row in rows:
         yield Bundle(zip(names, row))
