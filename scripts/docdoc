@@ -24,16 +24,26 @@ def pandoc():
     else:
         args.output = args.output or '%s.html' % base
 
-    pandoc = 'pandoc -S -o ' + sh_quote(args.output)
+    pandoc = 'pandoc -o' + sh_quote(args.output)
 
+    if args.type != 'snippet':
+        pandoc += ' -s'
     if args.type == 'html':
-        pandoc += ' -s -t html -c ' + sh_quote(
-            resource_filename('gcd', 'resources/github.css'))
+        if args.slides:
+            pandoc += ' -t revealjs -V theme=' + (
+                args.slides if type(args.slides) is str else 'black')
+        else:
+            pandoc += ' -t html -c ' + sh_quote(
+                resource_filename('gcd', 'resources/github.css'))
     elif args.type == 'pdf':
-        pandoc += ' -s -t latex -V ' + sh_quote(
-            'header-includes=\hypersetup{pdfborderstyle={/S/U/W 1}}')
+        if args.slides:
+            pandoc += ' -t beamer -V theme=' + (
+                args.slides if type(args.slides) is str else 'Copenhagen')
+        else:
+            pandoc += ' -t latex -V ' + sh_quote(
+                'header-includes=\hypersetup{pdfborderstyle={/S/U/W 1}}')
     elif args.type == 'gfm':
-        pandoc += ' -s -t markdown_github'
+        pandoc += ' -t markdown_github'
         args.mathimg = True
     else:  # snippet
         pandoc += ' -t html --template=' + sh_quote(
@@ -51,8 +61,8 @@ def pandoc():
         pandoc += ' --filter pandoc-crossref'
 
     if path.splitext(args.input)[1] == '.md':
-        extensions = '+lists_without_preceding_blankline+autolink_bare_uris'
-        pandoc += ' -f markdown' + extensions
+        pandoc += (' -f markdown+smart+lists_without_preceding_blankline'
+                   '+autolink_bare_uris')
 
     sh(pandoc + ' ' + sh_quote(args.input))
 
@@ -98,6 +108,8 @@ def main():
             help='Use the pandoc-citeproc filter.')
     cmd.arg('--crossref', '-r', action='store_true',
             help='Use the pandoc-crossref filter.')
+    cmd.arg('--slides', '-s', nargs='?', const=True, default=False,
+            help='Generate pdf or html slide show.')
 
     global args, base, name, tmpdir
     args = cmd.args
