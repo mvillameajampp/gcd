@@ -24,30 +24,28 @@ def pandoc():
     else:
         args.output = args.output or '%s.html' % base
 
-    pandoc = 'pandoc -o' + sh_quote(args.output)
+    pandoc = 'pandoc -o %s -t ' % sh_quote(args.output)
 
-    if args.type != 'snippet':
-        pandoc += ' -s'
     if args.type == 'html':
         if args.slides:
-            pandoc += ' -t revealjs -V theme=' + (
-                args.slides if type(args.slides) is str else 'black')
+            pandoc += 'revealjs'
         else:
-            pandoc += ' -t html -c ' + sh_quote(
+            pandoc += 'html -c ' + sh_quote(
                 resource_filename('gcd', 'resources/github.css'))
     elif args.type == 'pdf':
         if args.slides:
-            pandoc += ' -t beamer -V theme=' + (
-                args.slides if type(args.slides) is str else 'Copenhagen')
+            pandoc += 'beamer'
         else:
-            pandoc += ' -t latex -V ' + sh_quote(
+            pandoc += 'latex -V ' + sh_quote(
                 'header-includes=\hypersetup{pdfborderstyle={/S/U/W 1}}')
     elif args.type == 'gfm':
-        pandoc += ' -t markdown_github'
+        pandoc += 'markdown_github'
         args.mathimg = True
     else:  # snippet
-        pandoc += ' -t html --template=' + sh_quote(
+        pandoc += 'html --template=' + sh_quote(
             resource_filename('gcd', 'resources/snippet.html'))
+    if args.type != 'snippet':
+        pandoc += ' -s'
 
     if args.mathimg:
         pandoc = '_DOCDOC_FILTER=codecogs ' + pandoc + ' --filter docdoc'
@@ -108,7 +106,7 @@ def main():
             help='Use the pandoc-citeproc filter.')
     cmd.arg('--crossref', '-r', action='store_true',
             help='Use the pandoc-crossref filter.')
-    cmd.arg('--slides', '-s', nargs='?', const=True, default=False,
+    cmd.arg('--slides', '-s', action='store_true',
             help='Generate pdf or html slide show.')
 
     global args, base, name, tmpdir
