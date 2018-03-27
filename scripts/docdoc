@@ -52,11 +52,11 @@ def pandoc():
     else:
         pandoc += ' --mathjax'
 
-    if args.citeproc:
-        pandoc += ' --filter pandoc-citeproc'
-
     if args.crossref:
         pandoc += ' --filter pandoc-crossref'
+
+    if args.citeproc:
+        pandoc += ' --filter pandoc-citeproc'
 
     if path.splitext(args.input)[1] == '.md':
         pandoc += (' -f markdown+smart+lists_without_preceding_blankline'
