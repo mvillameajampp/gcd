@@ -6,6 +6,7 @@ import fcntl
 import argparse
 
 from contextlib import contextmanager
+from types import GeneratorType
 
 from gcd.etc import as_file
 
@@ -134,12 +135,15 @@ class Command:
             return
         self._top.description = doc or fun.__doc__
         if fun:
-            gen = fun()
-            if gen is not None:  # Allow for sub cmds to be also top cmds.
-                next(gen)
-                next(gen, None)
+            ret = fun()
+            if isinstance(ret, GeneratorType):
+                # Allow for sub cmds to be also top cmds.
+                next(ret)
+                ret = next(ret, None)
         if '_gen' in self.args:  # Run second part of sub cmd.
-            next(self.args._gen, None)
+            ret = next(self.args._gen, None)
+        if ret is not None:
+            sys.exit(ret)
 
 
 cmd = Command()
