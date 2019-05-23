@@ -280,14 +280,14 @@ class PgTestCase(TestCase):
     db = 'test'
 
     def setUp(self):
-        sh(('{ dropdb --if-exists %s &> /dev/null; } || true', self.db))
+        sh(('{ dropdb --if-exists %s > /dev/null 2>&1 ; } || true', self.db))
         sh(('createdb %s', self.db))
         self._to_close = []
 
     def tearDown(self):
         for conn_or_pool in self._to_close:
             conn_or_pool.close()
-        sh(('{ dropdb %s &> /dev/null; } || true', self.db))
+        sh(('{ dropdb %s > /dev/null 2>&1 ; } || true', self.db))
 
     def connect(self, **kwargs):
         conn = psycopg2.connect(dbname=self.db, **kwargs)
