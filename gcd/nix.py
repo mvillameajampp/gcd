@@ -26,6 +26,7 @@ def sh(cmd, input=None):
         stdin = subprocess.PIPE
     if cmd[-1] == '|' or cmd[-2] == '|':
         stdout = stderr = subprocess.PIPE
+    # Make sure `cmd` has strict POSIX-compatible syntax (no bashisms)
     proc = subprocess.Popen(
         cmd.rstrip('&|'), shell=True, universal_newlines=True,
         stdin=stdin, stdout=stdout, stderr=stderr)
