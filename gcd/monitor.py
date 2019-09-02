@@ -193,7 +193,8 @@ class StoreHandler(logging.Handler):
     def emit(self, record):
         try:
             self._batcher.put(self.format(record))
-        except:  # Avoid reentering or aborting: just a heads up in stderr.
+        except Exception:
+            # Avoid reentering or aborting: just a heads up in stderr.
             traceback.print_exc()
 
 
