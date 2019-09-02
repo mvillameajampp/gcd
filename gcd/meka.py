@@ -1,4 +1,5 @@
 import os
+import re
 import sys
 import shelve
 import textwrap
@@ -45,7 +46,7 @@ def echo(msg, *args, **kwargs):
     width = 0
     try:
         width = int(_sh('stty size|').split()[1])
-    except:  # Not in tty.
+    except Exception:  # Not in tty.
         pass
     if width <= 0:  # Inside ansible width == -1, why?
         width = 80
@@ -159,8 +160,8 @@ class build_ext(build_ext_):
             return super().get_export_symbols(ext)
 
     def get_ext_fullpath(self, ext_name):
+        path = super().get_ext_fullpath(ext_name)
         ext = next(e for e in self.extensions if e.name == ext_name)
         if isinstance(ext, CExtension):
-            return path.join(self.build_lib, ext_name)
-        else:
-            return super().get_ext_fullpath(ext_name)
+            path = re.sub(r'/[^/]*$', '.so', path)
+        return path
