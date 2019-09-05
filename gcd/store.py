@@ -357,5 +357,5 @@ def _debugged(fun, sql, args):
         fun(sql, args)
         t1 = time.perf_counter()
         logger.debug(dict(query=query_id, time=t1 - t0))
-    except:
+    except Exception:
         logger.exception(dict(query=query_id))
