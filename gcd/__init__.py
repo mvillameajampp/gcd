@@ -9,4 +9,9 @@ if os.environ.get('PYDEV'):
         pyximport.install(reload_support=True)
         del pyimport
 
+with open(os.path.join(os.path.dirname(__file__), "VERSION"), 'r') as vf:
+    my_version = vf.read().strip()
+
+__version__ = my_version
+
 del os
