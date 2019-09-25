@@ -5,6 +5,13 @@ All notable changes to this project will be documented here.
 
 .. contents::
 
+v1.1.2 - 2019-09-25
+-------------------
+
+Minor
+~~~~~
+- Fix python compilation version
+
 v1.1.0 - 2019-09-24
 -------------------
 
