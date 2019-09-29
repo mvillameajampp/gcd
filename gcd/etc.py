@@ -11,7 +11,7 @@ from contextlib import contextmanager
 logger = logging.getLogger(__name__)
 
 
-kb, mb, gb, tb = 1024, 1024**2, 1024**3, 1024**4
+kb, mb, gb, tb = 1024, 1024 ** 2, 1024 ** 3, 1024 ** 4
 
 
 def new(call):
@@ -47,7 +47,6 @@ class Config(Bundle):
 
 
 class PositionalAttribute:
-
     def install(attrs, scope, vals_attr):
         for index, attr in enumerate(attrs):
             scope[attr] = PositionalAttribute(index, vals_attr)
@@ -125,7 +124,7 @@ def snippet(text, length):
     if len(text) <= length:
         return text
     else:
-        return text[:length - 3] + '...'
+        return text[: length - 3] + "..."
 
 
 def as_many(obj, as_type=None):
@@ -167,28 +166,35 @@ def retry_on(errors, attempts=inf):  # TODO add reset and throttle periods.
                     i += 1
                     if not is_retryable(error) or i == attempts:
                         raise
-                    logger.exception('Retrying %s, %s/%s attempts' %
-                                     (fun.__name__, i, attempts))
+                    logger.exception(
+                        "Retrying %s, %s/%s attempts" % (fun.__name__, i, attempts)
+                    )
+
         return wrapper
+
     if not callable(errors):
+
         def is_retryable(error):
             return isinstance(error, as_many(errors, tuple))
+
     else:
         is_retryable = errors
     return decorator
 
 
 def fullname(obj):
-    return '%s.%s' % (obj.__module__, obj.__qualname__)
+    return "%s.%s" % (obj.__module__, obj.__qualname__)
 
 
 def template(file_or_path_or_str, **kwargs):
     import jinja2
+
     environment = jinja2.Environment(
-        line_statement_prefix=kwargs.pop('line_statement_prefix', '%'),
-        trim_blocks=kwargs.pop('trim_blocks', True),
-        lstrip_blocks=kwargs.pop('lstrip_blocks', True),
-        **kwargs)
+        line_statement_prefix=kwargs.pop("line_statement_prefix", "%"),
+        trim_blocks=kwargs.pop("trim_blocks", True),
+        lstrip_blocks=kwargs.pop("lstrip_blocks", True),
+        **kwargs
+    )
     try:
         with as_file(file_or_path_or_str) as tmpl_file:
             return environment.from_string(tmpl_file.read())
@@ -206,7 +212,7 @@ def c_array(*args):
 
 
 def deep_get(obj, path, default=None, abort=False):
-    for name in path.split('.'):
+    for name in path.split("."):
         try:
             obj = getattr(obj, name)
         except AttributeError as err:

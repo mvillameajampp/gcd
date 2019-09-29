@@ -26,18 +26,15 @@ def forget(memory, max_time, weight, time):
 
 
 class Forgetter:
-
     def __init__(self, memory):
         self.memory = as_memory(memory)
         self.max_time = None
 
     def forget(self, weight=1, time=None):
-        self.a, self.b, self.max_time = forget(
-            self.memory, self.max_time, weight, time)
+        self.a, self.b, self.max_time = forget(self.memory, self.max_time, weight, time)
 
 
 class Statistics:
-
     def __init__(self, memory=1, full=False):
         self._shared_forgetter = isinstance(memory, Forgetter)
         if self._shared_forgetter:
@@ -47,8 +44,8 @@ class Statistics:
         self.n = self.mean = 0
         if full:
             self._sqdelta = 0
-            self.min = float('inf')
-            self.max = -float('inf')
+            self.min = float("inf")
+            self.max = -float("inf")
         self._full = full
 
     def add(self, x, weight=1, time=None):
@@ -81,12 +78,11 @@ class Statistics:
             return (self._sqdelta / self.n) ** 0.5
 
     def as_dict(self):
-        full_attrs = ('stdev', 'min', 'max') if self._full else ()
-        return {a: getattr(self, a) for a in ('n', 'mean') + full_attrs}
+        full_attrs = ("stdev", "min", "max") if self._full else ()
+        return {a: getattr(self, a) for a in ("n", "mean") + full_attrs}
 
 
 class Monitor(defaultdict):
-
     def __init__(self, **info_base):
         super().__init__(int)
         self._info_base = info_base
@@ -119,32 +115,29 @@ class Monitor(defaultdict):
 
 
 class DictFormatter(logging.Formatter):
-
     def __init__(self, attrs=None):
         super().__init__()
         if attrs is None:
-            attrs = 'name', 'levelname', 'created', 'context'
-        assert 'asctime' not in attrs
+            attrs = "name", "levelname", "created", "context"
+        assert "asctime" not in attrs
         self._attrs = attrs
 
     def format(self, record):
-        log = {a: getattr(record, a)
-               for a in self._attrs if hasattr(record, a)}
+        log = {a: getattr(record, a) for a in self._attrs if hasattr(record, a)}
         if isinstance(record.msg, dict):
             log.update(record.msg)
         else:
-            log['message'] = record.getMessage()
+            log["message"] = record.getMessage()
         if record.exc_info:
             if not record.exc_text:
                 record.exc_text = self.formatException(record.exc_info)
-            log['exc_info'] = record.exc_text
+            log["exc_info"] = record.exc_text
         if record.stack_info:
-            log['stack_info'] = self.formatStack(record.stack_info)
+            log["stack_info"] = self.formatStack(record.stack_info)
         return log
 
 
 class JsonFormatter(DictFormatter):
-
     def __init__(self, attrs=None, *args, **kwargs):
         super().__init__(attrs)
         self._dumps = lambda log: json.dumps(log, *args, **kwargs)
@@ -154,7 +147,6 @@ class JsonFormatter(DictFormatter):
 
 
 class ContextFilter(logging.Filter):
-
     @staticmethod
     def install(*args, **kwargs):
         ContextFilter.instance = ContextFilter(*args, **kwargs)
@@ -169,10 +161,10 @@ class ContextFilter(logging.Filter):
 
     def __init__(self, host=False, process=True, **info):
         if host:
-            info['host'] = socket.gethostname()
+            info["host"] = socket.gethostname()
         if process:
             p = mp.current_process()
-            info['process'] = p.name, p.pid
+            info["process"] = p.name, p.pid
         self.info = info
 
     def filter(self, record):
@@ -181,7 +173,6 @@ class ContextFilter(logging.Filter):
 
 
 class StoreHandler(logging.Handler):
-
     def __init__(self, formatter=None, store=None, period=5):
         logging.Handler.__init__(self)
         store = store or JsonLogStore()
@@ -199,20 +190,25 @@ class StoreHandler(logging.Handler):
 
 
 class JsonLogStore(PgStore):
-
-    def __init__(self, conn_or_pool=None, table='logs', create=True):
+    def __init__(self, conn_or_pool=None, table="logs", create=True):
         self._table = table
         super().__init__(conn_or_pool, create)
 
     def add(self, logs):
         with self.transaction():
-            execute("""
-                    INSERT INTO %s (log)
-                    SELECT cast(v.log AS jsonb) FROM (%%s) AS v (log)
-                    """ % self._table, ((l,) for l in logs), values=True)
+            execute(
+                """
+                INSERT INTO %s (log)
+                SELECT cast(v.log AS jsonb) FROM (%%s) AS v (log)
+                """
+                % self._table,
+                ((l,) for l in logs),
+                values=True,
+            )
 
     def _create(self):
-        execute("""
+        execute(
+            """
                 CREATE TABLE IF NOT EXISTS %s (log jsonb);
                 CREATE INDEX IF NOT EXISTS %s_created_index
                 ON %s ((to_timestamp((log->>'created')::double precision)));
@@ -220,4 +216,6 @@ class JsonLogStore(PgStore):
                 ON %s ((log->>'name'),
                        (log->>'levelname'),
                        (to_timestamp((log->>'created')::double precision)));
-                """ % ((self._table,) * 5))
+                """
+            % ((self._table,) * 5)
+        )

@@ -22,8 +22,12 @@ class Process(mp.Process):
     init = None
 
     def __init__(self, target, *args, daemon=True, **kwargs):
-        super().__init__(target=self._wrapper, daemon=daemon,
-                         args=(self.init, target, *args), kwargs=kwargs)
+        super().__init__(
+            target=self._wrapper,
+            daemon=daemon,
+            args=(self.init, target, *args),
+            kwargs=kwargs,
+        )
 
     def start(self):
         super().start()
@@ -38,10 +42,8 @@ class Process(mp.Process):
 
 
 class Thread(mt.Thread):
-
     def __init__(self, target, *args, daemon=True, **kwargs):
-        super().__init__(target=target, daemon=daemon, args=args,
-                         kwargs=kwargs)
+        super().__init__(target=target, daemon=daemon, args=args, kwargs=kwargs)
 
     def start(self):
         super().start()
@@ -49,7 +51,6 @@ class Thread(mt.Thread):
 
 
 class Worker:
-
     def __init__(self, *args, new_process=False, **kwargs):
         worker_class = Process if new_process else Thread
         self.worker = worker_class(*args, *kwargs)
@@ -63,16 +64,15 @@ class Worker:
 
 
 class Task(Worker):
-
     @new
     class Stop:
         pass
 
-    def __init__(self, period_or_timer, callback, *args, new_process=False,
-                 **kwargs):
+    def __init__(self, period_or_timer, callback, *args, new_process=False, **kwargs):
         timer = as_timer(period_or_timer)
-        super().__init__(self._run, timer, callback, args, kwargs,
-                         new_process=new_process)
+        super().__init__(
+            self._run, timer, callback, args, kwargs, new_process=new_process
+        )
 
     def _run(self, timer, callback, args, kwargs):
         while True:
@@ -81,16 +81,29 @@ class Task(Worker):
                 if callback(*args, **kwargs) is Task.Stop:
                     return
             except Exception:
-                logger.exception('Error executing task')
+                logger.exception("Error executing task")
 
 
 class Batcher(Task):
-
-    def __init__(self, handle_batch, *args, hwm=None, period=None, queue=None,
-                 new_process=False, **kwargs):
+    def __init__(
+        self,
+        handle_batch,
+        *args,
+        hwm=None,
+        period=None,
+        queue=None,
+        new_process=False,
+        **kwargs
+    ):
         self._queue = queue or new_queue(hwm, new_process)
-        super().__init__(period or default_period, self._callback,
-                         handle_batch, args, kwargs, new_process=new_process)
+        super().__init__(
+            period or default_period,
+            self._callback,
+            handle_batch,
+            args,
+            kwargs,
+            new_process=new_process,
+        )
 
     def put(self, obj, *args, **kwargs):
         self._queue.put(obj, *args, **kwargs)
@@ -108,13 +121,27 @@ class Batcher(Task):
 
 
 class Streamer(Task):
-
-    def __init__(self, load_batch, *args, hwm=None, period=None,
-                 queue=None, new_process=False, **kwargs):
+    def __init__(
+        self,
+        load_batch,
+        *args,
+        hwm=None,
+        period=None,
+        queue=None,
+        new_process=False,
+        **kwargs
+    ):
         self._queue = queue or new_queue(hwm, new_process)
-        super().__init__(period or default_period, self._callback,
-                         load_batch, self._queue.maxsize, period, args, kwargs,
-                         new_process=new_process)
+        super().__init__(
+            period or default_period,
+            self._callback,
+            load_batch,
+            self._queue.maxsize,
+            period,
+            args,
+            kwargs,
+            new_process=new_process,
+        )
 
     def get(self, *args, **kwargs):
         return self._queue.get(*args, **kwargs)
@@ -154,11 +181,13 @@ def dequeue(queue, at_least=0, at_most=None):
 def sorter(get, item=identity, log_period=span(minutes=5), max_ooo=None):
     max_ooo = max_ooo or default_hwm
     if max_ooo < inf and log_period:
+
         def log():
             nonlocal seen, lost
             if lost:
                 logger.info(dict(seen=seen, lost=lost))
                 seen = lost = 0
+
         Task(log_period, log)
     heap = []
     max_seq = -1
@@ -187,6 +216,7 @@ def packer(put, size):
         if flush or len(pack) >= size:
             put(pack)
             pack = []
+
     pack = []
     return wrapper
 
@@ -197,5 +227,6 @@ def unpacker(get):
         if not pack:
             pack = get()
         return pack.pop(0)
+
     pack = None
     return wrapper

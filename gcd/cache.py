@@ -15,10 +15,9 @@ class Miss(Exception):
 
 
 class Cache:
-
     def __init__(self, tts=None, ttl=None, cache=None):
-        self._default_tts = tts or float('inf')
-        self._default_ttl = ttl or float('inf')
+        self._default_tts = tts or float("inf")
+        self._default_ttl = ttl or float("inf")
         self._cache = {} if cache is None else cache
         Task(ttl, self.clean_up).start()
 
@@ -40,8 +39,11 @@ class Cache:
 
     def clean_up(self):
         now = time.time()
-        self._cache = {key: entry for key, entry in self._cache.items()
-                       if now - entry.rtime <= self._ttl(key, entry.val)}
+        self._cache = {
+            key: entry
+            for key, entry in self._cache.items()
+            if now - entry.rtime <= self._ttl(key, entry.val)
+        }
 
     def _get(self, key):
         raise NotImplementedError
@@ -54,9 +56,7 @@ class Cache:
 
 
 class AsynCache(Cache):
-
-    def __init__(self, tts=None, ttl=None, cache=None, hwm=None,
-                 preload=False):
+    def __init__(self, tts=None, ttl=None, cache=None, hwm=None, preload=False):
         super().__init__(tts, ttl, cache)
         self._queue = new_queue(hwm)
         if preload:
@@ -81,7 +81,7 @@ class AsynCache(Cache):
         try:
             batch = dict(self._get_batch(keys))
         except Exception:
-            logger.exception('Error getting cache batch')
+            logger.exception("Error getting cache batch")
         else:
             now = time.time()
             for key in keys or batch.keys():
