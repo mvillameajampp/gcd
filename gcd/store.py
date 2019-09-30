@@ -25,11 +25,11 @@ logger = logging.getLogger(__name__)
 
 
 def execute(sql, args=(), cursor=None, values=False, named=False):
-    return _execute('execute', sql, args, cursor, values, named)
+    return _execute("execute", sql, args, cursor, values, named)
 
 
 def executemany(sql, args, cursor=None, named=False):
-    return _execute('executemany', sql, args, cursor, False, named)
+    return _execute("executemany", sql, args, cursor, False, named)
 
 
 def named(cursor, rows=None):
@@ -47,12 +47,12 @@ class Transaction:
     _local = mt.local()
 
     def active():
-        return getattr(Transaction._local, 'active', None)
+        return getattr(Transaction._local, "active", None)
 
     def __init__(self, conn_or_pool=None):
         conn_or_pool = conn_or_pool or Transaction.pool
         self._pool = self._conn = None
-        if hasattr(conn_or_pool, 'cursor'):
+        if hasattr(conn_or_pool, "cursor"):
             self._conn = conn_or_pool
         else:
             self._pool = conn_or_pool
@@ -79,15 +79,14 @@ class Transaction:
         try:
             for cursor in self._cursors:
                 try:
-                    if not getattr(cursor, 'withhold', False):
+                    if not getattr(cursor, "withhold", False):
                         cursor.close()
                 except Exception:
                     pass  # Might have been legitimately closed by the user.
             if type_ is None:
                 self._conn.commit()
             else:
-                logger.error('Transaction rollback',
-                             exc_info=(type_, value, traceback))
+                logger.error("Transaction rollback", exc_info=(type_, value, traceback))
                 self._conn.rollback()
         finally:
             Transaction._local.active = None
@@ -97,7 +96,6 @@ class Transaction:
 
 
 class Store:
-
     def __init__(self, conn_or_pool=None, create=True):
         self._conn_or_pool = conn_or_pool
         if create:
@@ -113,17 +111,13 @@ class Store:
 
 
 class PgStore(Store):
-
     def _creation_lock(self):
-        execute('SELECT pg_advisory_xact_lock(0)')
+        execute("SELECT pg_advisory_xact_lock(0)")
 
 
 class PgConnectionPool:
-
-    def __init__(self, *args, min_conns=1, keep_conns=10, max_conns=10,
-                 **kwargs):
-        self._pool = ThreadedConnectionPool(
-            min_conns, max_conns, *args, **kwargs)
+    def __init__(self, *args, min_conns=1, keep_conns=10, max_conns=10, **kwargs):
+        self._pool = ThreadedConnectionPool(min_conns, max_conns, *args, **kwargs)
         self._keep_conns = keep_conns
 
     def acquire(self):
@@ -136,7 +130,7 @@ class PgConnectionPool:
         self._pool.putconn(conn)
 
     def close(self):
-        if hasattr(self, '_pool'):
+        if hasattr(self, "_pool"):
             self._pool.closeall()
 
     __del__ = close
@@ -146,9 +140,17 @@ class PgVacuumer:
 
     semaphore = None
 
-    def __init__(self, table, period=span(minutes=10), ratio=0.2,
-                 full_period=span(hours=10), full_ratio=0.2, full_size=None,
-                 semaphore=None, conn_or_pool=None):
+    def __init__(
+        self,
+        table,
+        period=span(minutes=10),
+        ratio=0.2,
+        full_period=span(hours=10),
+        full_ratio=0.2,
+        full_size=None,
+        semaphore=None,
+        conn_or_pool=None,
+    ):
         self._table = table
         self._period = period
         self._ratio = ratio
@@ -161,12 +163,15 @@ class PgVacuumer:
         self.stats = None
 
     def auto(self, enable):
-        enable = 'true' if enable else 'false'
+        enable = "true" if enable else "false"
         with Transaction(self._conn_or_pool):
-            execute("""
-                    ALTER TABLE %s SET (autovacuum_enabled = %s,
-                                        toast.autovacuum_enabled = %s)
-                    """ % (self._table, enable, enable))
+            execute(
+                """
+                ALTER TABLE %s SET (autovacuum_enabled = %s,
+                                    toast.autovacuum_enabled = %s)
+                """
+                % (self._table, enable, enable)
+            )
         return self
 
     def start(self):
@@ -176,35 +181,38 @@ class PgVacuumer:
 
     def _callback(self):
         if self.stats is None:
-            self._vacuum('ANALYZE')
+            self._vacuum("ANALYZE")
             self.stats = self._stats()
         else:
-            logger = logging.getLogger('PgVacuumer')
+            logger = logging.getLogger("PgVacuumer")
             self.stats = stats = self._stats()
             vacuum_type = None
             now = time.time()
-            if (now > self._full_next and
-                    stats.table_size > self._full_size and
-                    stats.free_ratio > self._full_ratio):
+            if (
+                now > self._full_next
+                and stats.table_size > self._full_size
+                and stats.free_ratio > self._full_ratio
+            ):
                 logger.warning(
-                    'Table %s is too big (%sb), running full vacuum.',
-                    self._table, stats.table_size)
+                    "Table %s is too big (%sb), running full vacuum.",
+                    self._table,
+                    stats.table_size,
+                )
                 self._full_next = now + self._full_period
-                vacuum_type = 'FULL'
+                vacuum_type = "FULL"
             elif stats.dead_ratio > self._ratio:
-                vacuum_type = 'ANALYZE'
+                vacuum_type = "ANALYZE"
             if vacuum_type:
                 self._vacuum(vacuum_type)
                 self.stats = self._stats(tuple_size=False)
-                logger.info('Vacuum reduced dead/total to %s',
-                            self.stats.dead_ratio)
+                logger.info("Vacuum reduced dead/total to %s", self.stats.dead_ratio)
 
     def _vacuum(self, vacuum_type):
         self._semaphore and self._semaphore.acquire()
         try:
             with Transaction(self._conn_or_pool):
-                execute('END')  # End transaction opened by psycopg2.
-                execute('VACUUM %s %s' % (vacuum_type, self._table))
+                execute("END")  # End transaction opened by psycopg2.
+                execute("VACUUM %s %s" % (vacuum_type, self._table))
         finally:
             self._semaphore and self._semaphore.release()
 
@@ -212,54 +220,59 @@ class PgVacuumer:
         stats = Bundle(tuple_size=None)
         with Transaction(self._conn_or_pool):
             stats.table_size, stats.live_tuples, stats.dead_tuples = execute(
-
                 """
                 SELECT pg_relation_size('%s'), n_live_tup, n_dead_tup
                 FROM pg_stat_user_tables WHERE relname = '%s'
-                """ % (self._table, self._table)).fetchone()
+                """
+                % (self._table, self._table)
+            ).fetchone()
         stats.total_tuples = stats.live_tuples + stats.dead_tuples
         stats.dead_ratio = stats.dead_tuples / (stats.total_tuples or 1)
         if tuple_size and stats.total_tuples >= 20:
             n = 500
             sr = 100 * n / max(stats.total_tuples, n)
-            for clause in 'TABLESAMPLE SYSTEM(%s)' % sr, 'LIMIT %s' % n:
+            for clause in "TABLESAMPLE SYSTEM(%s)" % sr, "LIMIT %s" % n:
                 with Transaction(self._conn_or_pool):
                     stats.tuple_size, = execute(
                         """
                         SELECT avg(t.s) FROM (
                             SELECT pg_column_size(t.*) AS s FROM %s t %s) t
-                        """ % (self._table, clause)).fetchone()
+                        """
+                        % (self._table, clause)
+                    ).fetchone()
                     if stats.tuple_size is not None:
                         break
-        stats.used_space = min(stats.table_size,
-                               (stats.tuple_size or 0) * stats.total_tuples)
+        stats.used_space = min(
+            stats.table_size, (stats.tuple_size or 0) * stats.total_tuples
+        )
         stats.free_space = stats.table_size - stats.used_space
         stats.free_ratio = stats.free_space / (stats.table_size or 1)
         return stats
 
 
 class PgFlattener:
-
     def __init__(self, obj_type=None, json=False, gzip=False):
         assert not (json and gzip)
         self.obj_type = obj_type
-        self.col_type = 'jsonb' if json else 'bytea'
+        self.col_type = "jsonb" if json else "bytea"
 
         if json:
             pair = json_.dumps, identity
         elif not gzip:
             pair = pickle.dumps, pickle.loads
         else:
-            pair = (lambda obj: zlib.compress(pickle.dumps(obj)),
-                    lambda col: pickle.loads(zlib.decompress(col)))
+            pair = (
+                lambda obj: zlib.compress(pickle.dumps(obj)),
+                lambda col: pickle.loads(zlib.decompress(col)),
+            )
         self._dumps, self._loads = pair
 
         if obj_type is None:
             pair = identity, None
-        elif hasattr(obj_type, '__getstate__'):
+        elif hasattr(obj_type, "__getstate__"):
             pair = obj_type.__getstate__, obj_type.__setstate__
         else:
-            pair = attrgetter('__dict__'), attrsetter('__dict__')
+            pair = attrgetter("__dict__"), attrsetter("__dict__")
         self._get_state, self._set_state = pair
 
     def flatten(self, obj):
@@ -277,17 +290,17 @@ class PgFlattener:
 
 class PgTestCase(TestCase):
 
-    db = 'test'
+    db = "test"
 
     def setUp(self):
-        sh(('{ dropdb --if-exists %s > /dev/null 2>&1 ; } || true', self.db))
-        sh(('createdb %s', self.db))
+        sh(("{ dropdb --if-exists %s > /dev/null 2>&1 ; } || true", self.db))
+        sh(("createdb %s", self.db))
         self._to_close = []
 
     def tearDown(self):
         for conn_or_pool in self._to_close:
             conn_or_pool.close()
-        sh(('{ dropdb %s > /dev/null 2>&1 ; } || true', self.db))
+        sh(("{ dropdb %s > /dev/null 2>&1 ; } || true", self.db))
 
     def connect(self, **kwargs):
         conn = psycopg2.connect(dbname=self.db, **kwargs)
@@ -304,15 +317,20 @@ def allot(seqs, base=None, capacity=None):
     assert not (base and capacity)
     if capacity is not None:
         assert capacity >= 1
+
         def quota(i):
             mem = 1 - 1 / capacity
-            return (1 - mem**i) / (1 - mem)
+            return (1 - mem ** i) / (1 - mem)
+
     else:
         assert base >= 1
+
         def quota(i):
             return log(i, base or 1.5) + 1
+
     def score(seqs):
-        return sum((quota(new_seq - s) - i)**2 for i, s in enumerate(seqs, 1))
+        return sum((quota(new_seq - s) - i) ** 2 for i, s in enumerate(seqs, 1))
+
     seqs = list(sorted(seqs, reverse=True))
     if not seqs:
         return 0, []
@@ -340,17 +358,18 @@ def _values(sql, args):  # args can be any iterable.
     arg = next(args_iter)
     args = list(arg)
     args.extend(v for a in args_iter for v in a)
-    value_sql = '(' + ','.join(['%s'] * len(arg)) + ')'
-    values_sql = 'VALUES ' + ','.join([value_sql] * (len(args) // len(arg)))
+    value_sql = "(" + ",".join(["%s"] * len(arg)) + ")"
+    values_sql = "VALUES " + ",".join([value_sql] * (len(args) // len(arg)))
     sql %= values_sql
     return sql, args
 
 
 def _debugged(fun, sql, args):
     query_id = random.randint(0, 10000)
-    log_sql = snippet(re.sub(r'[\n\t ]+', ' ', sql[:500]).strip(), 100)
-    log_args = snippet(str((list(args.items())
-                            if isinstance(args, dict) else args)[:20]), 100)
+    log_sql = snippet(re.sub(r"[\n\t ]+", " ", sql[:500]).strip(), 100)
+    log_args = snippet(
+        str((list(args.items()) if isinstance(args, dict) else args)[:20]), 100
+    )
     logger.debug(dict(query=query_id, sql=log_sql, args=log_args))
     try:
         t0 = time.perf_counter()

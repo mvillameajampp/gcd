@@ -6,9 +6,14 @@ from datetime import datetime, timedelta
 
 def utc(*args, **kwargs):
     if args and type(args[0]) is str:
-        iso = args[0].replace('T', ' ').rstrip('Z')
-        formats = ('%Y-%m-%d %H:%M:%S.%f', '%Y-%m-%d %H:%M:%S',
-                   '%Y-%m-%d', '%H:%M:%S.%f', '%H:%M:%S')
+        iso = args[0].replace("T", " ").rstrip("Z")
+        formats = (
+            "%Y-%m-%d %H:%M:%S.%f",
+            "%Y-%m-%d %H:%M:%S",
+            "%Y-%m-%d",
+            "%H:%M:%S.%f",
+            "%H:%M:%S",
+        )
         for format in formats:
             try:
                 return strptime(iso, format)
@@ -20,7 +25,7 @@ def utc(*args, **kwargs):
 
 
 def iso(ts):
-    return strftime(ts, '%Y-%m-%d %H:%M:%S.%f')
+    return strftime(ts, "%Y-%m-%d %H:%M:%S.%f")
 
 
 def strptime(str, format):
@@ -41,9 +46,9 @@ def trunc(ts, span):
 
 def set_timezone(timezone=None):
     if timezone:
-        os.environ['TZ'] = timezone
-    elif 'TZ' in os.environ:
-        del os.environ['TZ']
+        os.environ["TZ"] = timezone
+    elif "TZ" in os.environ:
+        del os.environ["TZ"]
     time.tzset()
 
 
@@ -68,7 +73,6 @@ def as_timer(period_or_timer):
 
 
 class Timer:
-
     def __init__(self, period, start_at=None, align=False):
         assert not (start_at and align)
         self.period = period
@@ -95,7 +99,6 @@ class Timer:
 
 
 class LeakyBucket:
-
     def __init__(self, freq, capacity):
         self._period = 1 / freq
         self._capacity = capacity
