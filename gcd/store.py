@@ -46,6 +46,7 @@ class Transaction:
 
     _local = mt.local()
 
+    @staticmethod
     def active():
         return getattr(Transaction._local, "active", None)
 
@@ -107,6 +108,9 @@ class Store:
         return Transaction(self._conn_or_pool)
 
     def _create(self):
+        raise NotImplementedError
+
+    def _creation_lock(self):
         raise NotImplementedError
 
 

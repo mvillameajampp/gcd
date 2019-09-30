@@ -153,7 +153,7 @@ class ContextFilter(logging.Filter):
         return ContextFilter.instance
 
     @staticmethod
-    def info(**kwargs):
+    def info(**kwargs):  # pylint: disable=method-hidden
         if ContextFilter.instance:
             ContextFilter.instance.info.update(kwargs)
 

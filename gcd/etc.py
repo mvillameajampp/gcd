@@ -47,6 +47,7 @@ class Config(Bundle):
 
 
 class PositionalAttribute:
+    @staticmethod
     def install(attrs, scope, vals_attr):
         for index, attr in enumerate(attrs):
             scope[attr] = PositionalAttribute(index, vals_attr)
@@ -95,7 +96,7 @@ def unzip(iterable, n=2):
 
 
 def repeat_call(func, *args, until=Default, times=None, **kwargs):
-    for i in range(times) if times else count():
+    for _ in range(times) if times else count():
         obj = func(*args, **kwargs)
         if until is not Default and obj == until:
             return
