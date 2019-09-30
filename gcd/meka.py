@@ -138,7 +138,7 @@ def gen(tmpl, **kwargs):
 
 def build(builder, modules):
     def build():
-        "Build binary extensions."
+        """Build binary extensions."""
         cmd.arg(
             "--debug", "-d", action="store_true", help="Compile with debug information."
         )
@@ -153,7 +153,7 @@ def build(builder, modules):
 
 def clean(*paths):
     def clean():
-        "Clean generated files."
+        """Clean generated files."""
         yield
         for path in paths:  # noqa
             try:

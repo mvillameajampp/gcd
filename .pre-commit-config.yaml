@@ -10,6 +10,10 @@ repos:
     - id: pylint
       args:
       - --disable=import-error
+-   repo: https://github.com/pycqa/pydocstyle
+    rev: 4.0.1
+    hooks:
+    -   id: pydocstyle
 -   repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v2.3.0
     hooks:

@@ -1,4 +1,5 @@
 black
 flake8
 pylint
+pydocstyle
 pre-commit
