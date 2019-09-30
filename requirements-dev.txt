@@ -4,6 +4,4 @@ pre-commit
 black
 flake8
 flake8-docstrings
-# pydocstyle 4 implements support for google style docstrings
-pydocstyle>=4.0.0
 pylint
