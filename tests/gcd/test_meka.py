@@ -33,11 +33,13 @@ def touch(*paths):
 
 class TestRule(TestCase):
     def setUp(self):
+        self.original_cwd = os.getcwd()
         self.cwd = tempfile.mkdtemp()
         os.chdir(self.cwd)
         touch("in1", "in2", "in3")
 
     def tearDown(self):
+        os.chdir(self.original_cwd)
         shutil.rmtree(self.cwd)
 
     def test_uptodate(self):
