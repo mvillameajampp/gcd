@@ -3,6 +3,9 @@ from setuptools import setup
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 
+with open(os.path.join(current_dir, "gcd", "VERSION"), "r") as vf:
+    version = vf.read().strip()
+
 
 def parse_requirements_txt(filename="requirements.txt"):
     with open(os.path.join(current_dir, filename)) as requirements_file:
@@ -18,10 +21,11 @@ def parse_requirements_txt(filename="requirements.txt"):
 
 setup(
     name="gcd",
-    version="1.0",
+    version=version,
     packages=["gcd"],
     extras_require={
         "dev": parse_requirements_txt("requirements-dev.txt"),
         "all": parse_requirements_txt("requirements.txt"),
     },
+    package_data={"": ["VERSION", "requirements.txt", "requirements-dev.txt"]},
 )
