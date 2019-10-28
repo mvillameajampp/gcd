@@ -1,0 +1,9 @@
+[run]
+omit = 
+    *tests*
+    setup.py
+    ./.eggs/*
+    ./build/*
+    ./env/*
+    ./doc/*
+    ./docs/* 
