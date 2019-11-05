@@ -27,5 +27,6 @@ setup(
         "dev": parse_requirements_txt("requirements-dev.txt"),
         "all": parse_requirements_txt("requirements.txt"),
     },
-    data_files=[("", ["requirements.txt", "requirements-dev.txt", "gcd/VERSION"])],
+    package_data={"gcd": ["VERSION"]},
+    data_files=[("", ["requirements.txt", "requirements-dev.txt"])],
 )
