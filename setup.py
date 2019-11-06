@@ -27,6 +27,16 @@ setup(
         "dev": parse_requirements_txt("requirements-dev.txt"),
         "all": parse_requirements_txt("requirements.txt"),
     },
+    classifiers=[
+        "Development Status :: 5 - Production/Stable",
+        "Intended Audience :: Developers",
+        "Operating System :: OS Independent",
+        "Programming Language :: Python :: 3.5",
+        "Programming Language :: Python :: 3.6",
+        "Programming Language :: Python :: 3.7",
+        "Topic :: Software Development",
+    ],
+    zip_safe=False,
     package_data={"gcd": ["VERSION"]},
     data_files=[("", ["requirements.txt", "requirements-dev.txt"])],
 )
