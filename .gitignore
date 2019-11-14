@@ -6,3 +6,10 @@ __pycache__
 *.pyc
 *.swp
 *.swo
+
+# Sphinx documentation
+docs/_build/
+docs/doctrees/
+docs/html/
+docs/modules/gcd.rst
+docs/modules/modules.rst
