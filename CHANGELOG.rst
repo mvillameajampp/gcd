@@ -12,7 +12,24 @@ bugs with user-visible outcomes.
 When major components get significant changes worthy of mention, they
 can be described in a Major section.
 
-v1.1.0 - Unreleased
+v1.1.2 - 2019-11-05
+===================
+
+Bugfixes
+--------
+
+* Copy version file when GCD is being installed
+
+v1.1.1 - 2019-11-05
+===================
+
+Bugfixes
+--------
+
+* Make sure that the requirements files are on the built package
+
+
+v1.1.0 - 2019-11-01
 ===================
 
 Added
