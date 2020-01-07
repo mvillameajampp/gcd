@@ -3,7 +3,7 @@ import time
 from unittest import TestCase, main
 from unittest.mock import Mock, patch
 
-from gcd.chronos import Timer, LeakyBucket
+from gcd.chronos import Timer, LeakyBucket, trunc
 from gcd.work import Task
 
 
@@ -56,6 +56,16 @@ class TestLeakyBucket(TestCase):
         t0 = time.time()
         bucket.wait(2)
         self.assertAlmostEqual(time.time() - t0, 0.1, places=3)
+
+
+class TestFunctions(TestCase):
+    def test_trunc(self):
+        self.assertEqual(trunc(0, 2), 0)
+        self.assertEqual(trunc(2, 2), 2)
+        self.assertEqual(trunc(6, 2), 6)
+        self.assertEqual(trunc(7, 2), 6)
+        # Because of rounding errors, 8 // 0.4 == 19, not 20 as one would expect.
+        self.assertEqual(trunc(8, 0.4), 8)
 
 
 if __name__ == "__main__":

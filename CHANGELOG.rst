@@ -12,6 +12,14 @@ bugs with user-visible outcomes.
 When major components get significant changes worthy of mention, they
 can be described in a Major section.
 
+v1.1.3 - Unreleased
+===================
+
+Bugfixes
+--------
+
+* Avoid representation errors in chronos.trunc
+
 v1.1.2 - 2019-11-05
 ===================
 

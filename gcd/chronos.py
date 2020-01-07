@@ -41,7 +41,8 @@ def span(*args, **kwargs):
 
 
 def trunc(ts, span):
-    return (ts // span) * span
+    trunc_ts = (ts // span) * span
+    return trunc_ts if trunc_ts + span > ts else ts
 
 
 def set_timezone(timezone=None):
