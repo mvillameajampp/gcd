@@ -10,16 +10,13 @@ with open(os.path.join(current_dir, "README.rst")) as readme_file:
     readme = readme_file.read()
 
 
-def parse_requirements_txt(filename="requirements.txt"):
-    with open(os.path.join(current_dir, filename)) as requirements_file:
-        requirements = requirements_file.readlines()
-        # remove whitespaces
-        requirements = [line.strip().replace(" ", "") for line in requirements]
-        # remove all the requirements that are comments
-        requirements = [line for line in requirements if not line.startswith("#")]
-        # remove empty lines
-        requirements = list(filter(None, requirements))
-        return requirements
+extra_require = {"store": ["psycopg2"]}
+
+all_dependencies = set()
+for dependencies in extra_require.values():
+    all_dependencies.update(dependencies)
+
+extra_require["all"] = list(all_dependencies)
 
 
 setup(
@@ -27,10 +24,7 @@ setup(
     description="Utils functions for Python3",
     version=version,
     packages=["gcd"],
-    extras_require={
-        "dev": parse_requirements_txt("requirements-dev.txt"),
-        "all": parse_requirements_txt("requirements.txt"),
-    },
+    extras_require=extra_require,
     long_description=readme,
     long_description_content_type="text/x-rst",
     classifiers=[
@@ -46,5 +40,4 @@ setup(
     license="BSD 3-Clause",
     zip_safe=False,
     package_data={"gcd": ["VERSION"]},
-    data_files=[("", ["requirements.txt", "requirements-dev.txt", "README.rst"])],
 )

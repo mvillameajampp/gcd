@@ -12,8 +12,13 @@ bugs with user-visible outcomes.
 When major components get significant changes worthy of mention, they
 can be described in a Major section.
 
-v1.1.3 - Unreleased
+v1.2.0 - Unreleased
 ===================
+
+Changed
+-------
+
+* The file setup.py and removed the requirements.txt file
 
 Bugfixes
 --------

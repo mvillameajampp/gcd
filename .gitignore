@@ -1,6 +1,7 @@
 .vscode
 .coverage
 dist
+build/
 *.egg-info
 __pycache__
 *.pyc
@@ -13,3 +14,7 @@ docs/doctrees/
 docs/html/
 docs/modules/gcd.rst
 docs/modules/modules.rst
+
+# tests output files
+coverage.xml
+output.xml
