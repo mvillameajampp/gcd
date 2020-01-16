@@ -6,6 +6,9 @@ import fcntl
 import argparse
 
 from contextlib import contextmanager
+from types import GeneratorType
+
+from gcd.etc import as_file
 
 
 env = os.environ
@@ -19,14 +22,20 @@ def sh(cmd, input=None):
     stdin = stdout = stderr = None
     if input is not None:
         if not isinstance(input, str):
-            input = '\n'.join(input)
+            input = "\n".join(input)
         stdin = subprocess.PIPE
-    if cmd[-1] == '|':
+    if cmd[-1] == "|" or cmd[-2] == "|":
         stdout = stderr = subprocess.PIPE
+    # Make sure `cmd` has strict POSIX-compatible syntax (no bashisms)
     proc = subprocess.Popen(
-        cmd.rstrip('&|'), shell=True, universal_newlines=True,
-        stdin=stdin, stdout=stdout, stderr=stderr)
-    if cmd[-1] in '&':
+        cmd.rstrip("&|"),
+        shell=True,
+        universal_newlines=True,
+        stdin=stdin,
+        stdout=stdout,
+        stderr=stderr,
+    )
+    if cmd[-1] == "&" or cmd[-2] == "&":
         if input is not None:
             proc.stdin.write(input)
         return proc
@@ -35,7 +44,7 @@ def sh(cmd, input=None):
         if proc.returncode != 0 or error:
             raise ShError(proc.returncode, cmd, output, error)
         else:
-            return output and output.strip('\n')
+            return output and output.strip("\n")
 
 
 def as_cmd(cmd):
@@ -48,13 +57,13 @@ def sh_quote(text, quote="'"):
     if quote == "'":
         return "'%s'" % text.replace("'", r"'\''")
     elif quote == '"':
-        return '"%s"' % text.replace('"', r'\"')
+        return '"%s"' % text.replace('"', r"\"")
     else:
-        raise ValueError('Unknown quote %s', quote)
+        raise ValueError("Unknown quote %s", quote)
 
 
 def sh_expand(expr):
-    return sh('echo %s|' % expr)
+    return sh("echo %s|" % expr)
 
 
 class ShError(subprocess.CalledProcessError):
@@ -62,18 +71,18 @@ class ShError(subprocess.CalledProcessError):
 
 
 def cat(path):
-    with(open(path)) as file:
-        return file.read().strip('\n')
+    with (open(path)) as file:
+        return file.read().strip("\n")
 
 
 @contextmanager
-def flock(path):
-    with open(path, 'w') as lock:
-        fcntl.flock(lock, fcntl.LOCK_EX)
+def flock(file_or_path, mode="a", shared=False):
+    with as_file(file_or_path, mode) as file:
+        fcntl.flock(file, fcntl.LOCK_SH if shared else fcntl.LOCK_EX)
         try:
-            yield
+            yield file
         finally:
-            fcntl.flock(lock, fcntl.LOCK_UN)
+            fcntl.flock(file, fcntl.LOCK_UN)
 
 
 @contextmanager
@@ -100,7 +109,6 @@ def make_killable(killer=kill_us):
 
 
 class Command:
-
     def __init__(self):
         self._top = self._cur = argparse.ArgumentParser()
         self._sub = self._args = None
@@ -116,11 +124,12 @@ class Command:
 
     def sub(self, fun, *, name=None, doc=None):
         if self._sub is None:
-            self._sub = self._top.add_subparsers(dest='cmd')
+            self._sub = self._top.add_subparsers(dest="cmd")
             self._sub.required = True
         try:
             self._cur = self._sub.add_parser(
-                name or fun.__name__, help=doc or fun.__doc__)
+                name or fun.__name__, help=doc or fun.__doc__
+            )
             gen = fun()
             next(gen)  # Run first part of sub cmd.
             self._cur.set_defaults(_gen=gen)
@@ -128,22 +137,19 @@ class Command:
             self._cur = self._top
 
     def run(self, fun=None, *, doc=None):
-        if sys._getframe(1).f_globals['__name__'] != '__main__':
+        if sys._getframe(1).f_globals["__name__"] != "__main__":
             return
         self._top.description = doc or fun.__doc__
         if fun:
-            gen = fun()
-            if gen is not None:  # Allow for sub cmds to be also top cmds.
-                next(gen)
-                try:
-                    next(gen)
-                except StopIteration:
-                    pass
-        if '_gen' in self.args:  # Run second part of sub cmd.
-            try:
-                next(self.args._gen)
-            except StopIteration:
-                pass
+            ret = fun()
+            if isinstance(ret, GeneratorType):
+                # Allow for sub cmds to be also top cmds.
+                next(ret)
+                ret = next(ret, None)
+        if "_gen" in self.args:  # Run second part of sub cmd.
+            ret = next(self.args._gen, None)
+        if ret is not None:
+            sys.exit(ret)
 
 
 cmd = Command()

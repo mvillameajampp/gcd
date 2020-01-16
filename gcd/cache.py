@@ -15,10 +15,9 @@ class Miss(Exception):
 
 
 class Cache:
-
     def __init__(self, tts=None, ttl=None, cache=None):
-        self._default_tts = tts or float('inf')
-        self._default_ttl = ttl or float('inf')
+        self._default_tts = tts or float("inf")
+        self._default_ttl = ttl or float("inf")
         self._cache = {} if cache is None else cache
         Task(ttl, self.clean_up).start()
 
@@ -35,10 +34,16 @@ class Cache:
         else:
             return entry.val
 
+    def items(self):
+        return ((k, e.val) for k, e in self._cache.items() if e.val is not NA)
+
     def clean_up(self):
         now = time.time()
-        self._cache = {key: entry for key, entry in self._cache.items()
-                       if now - entry.rtime <= self._ttl(key, entry.val)}
+        self._cache = {
+            key: entry
+            for key, entry in self._cache.items()
+            if now - entry.rtime <= self._ttl(key, entry.val)
+        }
 
     def _get(self, key):
         raise NotImplementedError
@@ -51,10 +56,11 @@ class Cache:
 
 
 class AsynCache(Cache):
-
-    def __init__(self, tts=None, ttl=None, cache=None, hwm=None):
+    def __init__(self, tts=None, ttl=None, cache=None, hwm=None, preload=False):
         super().__init__(tts, ttl, cache)
         self._queue = new_queue(hwm)
+        if preload:
+            self._load_batch(None)
         Thread(self._process_queue, daemon=True).start()
 
     def _get(self, key):
@@ -69,15 +75,17 @@ class AsynCache(Cache):
 
     def _process_queue(self):
         while True:
-            keys = set(dequeue(self._queue, 1))
-            try:
-                vals = dict(self._get_batch(keys))
-            except Exception:
-                logger.exception('Error getting cache batch')
-                continue
+            self._load_batch(set(dequeue(self._queue, 1)))
+
+    def _load_batch(self, keys):
+        try:
+            batch = dict(self._get_batch(keys))
+        except Exception:
+            logger.exception("Error getting cache batch")
+        else:
             now = time.time()
-            for key in keys:
-                entry = Bundle(wtime=now, rtime=now, val=vals.get(key, NA))
+            for key in keys or batch.keys():
+                entry = Bundle(wtime=now, rtime=now, val=batch.get(key, NA))
                 self._cache[key] = entry
 
     def _get_batch(self, keys):  # Returns (key, val), (key, val), ...

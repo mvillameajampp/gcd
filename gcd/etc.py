@@ -2,12 +2,16 @@ import operator
 import logging
 import ctypes as ct
 
+from math import inf
 from itertools import islice, chain, count
-from functools import reduce, lru_cache
+from functools import reduce
 from contextlib import contextmanager
 
 
 logger = logging.getLogger(__name__)
+
+
+kb, mb, gb, tb = 1024, 1024 ** 2, 1024 ** 3, 1024 ** 4
 
 
 def new(call):
@@ -43,7 +47,7 @@ class Config(Bundle):
 
 
 class PositionalAttribute:
-
+    @staticmethod
     def install(attrs, scope, vals_attr):
         for index, attr in enumerate(attrs):
             scope[attr] = PositionalAttribute(index, vals_attr)
@@ -67,20 +71,32 @@ def nop(*args, **kwargs):
     pass
 
 
+def coalesce(obj, default):
+    return default if obj is None else obj
+
+
+def clip(value, min_value=-inf, max_value=-inf):
+    return max(min_value, min(value, max_value))
+
+
 def attrsetter(name):
     return lambda obj, value: setattr(obj, name, value)
 
 
 def sign(x):
-    return -1 if x < 0 else 1
+    return -1 if x < 0 else (0 if x == 0 else 1)
 
 
 def product(iterable, start=1):
     return reduce(operator.mul, iterable, start)
 
 
+def unzip(iterable, n=2):
+    return tuple(zip(*iterable)) or ((),) * n
+
+
 def repeat_call(func, *args, until=Default, times=None, **kwargs):
-    for i in range(times) if times else count():
+    for _ in range(times) if times else count():
         obj = func(*args, **kwargs)
         if until is not Default and obj == until:
             return
@@ -109,7 +125,7 @@ def snippet(text, length):
     if len(text) <= length:
         return text
     else:
-        return text[:length - 3] + '...'
+        return text[: length - 3] + "..."
 
 
 def as_many(obj, as_type=None):
@@ -140,42 +156,50 @@ def load_pyconfig(file_or_path, config=None):
     return config
 
 
-def retry_on(errors, attempts=None):  # TODO add reset and throttle periods.
+def retry_on(errors, attempts=inf):  # TODO add reset and throttle periods.
     def decorator(fun):
         def wrapper(*args, **kwargs):
-            for i in range(attempts) if attempts else count():
+            i = 0
+            while i < attempts:
                 try:
                     return fun(*args, **kwargs)
                 except Exception as error:
-                    if not is_retryable(error):
+                    i += 1
+                    if not is_retryable(error) or i == attempts:
                         raise
-                    logger.exception('Retrying %s, %s/%s attempts' %
-                                     (fun.__name__, i + 1, attempts))
+                    logger.exception(
+                        "Retrying %s, %s/%s attempts" % (fun.__name__, i, attempts)
+                    )
+
         return wrapper
+
     if not callable(errors):
+
         def is_retryable(error):
             return isinstance(error, as_many(errors, tuple))
+
     else:
         is_retryable = errors
     return decorator
 
 
 def fullname(obj):
-    return '%s.%s' % (obj.__module__, obj.__qualname__)
+    return "%s.%s" % (obj.__module__, obj.__qualname__)
 
 
-@lru_cache(maxsize=100)
 def template(file_or_path_or_str, **kwargs):
     import jinja2
+
     environment = jinja2.Environment(
-        line_statement_prefix=kwargs.pop('line_statement_prefix', '%'),
-        trim_blocks=kwargs.pop('trim_blocks', True),
-        lstrip_blocks=kwargs.pop('lstrip_blocks', True),
-        **kwargs)
+        line_statement_prefix=kwargs.pop("line_statement_prefix", "%"),
+        trim_blocks=kwargs.pop("trim_blocks", True),
+        lstrip_blocks=kwargs.pop("lstrip_blocks", True),
+        **kwargs
+    )
     try:
         with as_file(file_or_path_or_str) as tmpl_file:
             return environment.from_string(tmpl_file.read())
-    except FileNotFoundError:
+    except (FileNotFoundError, OSError):
         return environment.from_string(file_or_path_or_str)
 
 
@@ -186,3 +210,17 @@ def c_array(*args):
     else:
         c_type, buf = args
         return (c_type * (len(buf) // ct.sizeof(c_type))).from_buffer_copy(buf)
+
+
+def deep_get(obj, path, default=None, abort=False):
+    for name in path.split("."):
+        try:
+            obj = getattr(obj, name)
+        except AttributeError as err:
+            try:
+                obj = obj[name]
+            except (TypeError, KeyError):
+                if abort:
+                    raise err
+                return default
+    return obj

@@ -9,17 +9,17 @@ from gcd.meka import rule
 
 
 @rule
-def rule1(out='out', in1='in1', ins=['in2', 'in3'], arg=0):
+def rule1(out="out", in1="in1", ins=["in2", "in3"], arg=0):
     rule1.called = False
-    yield in1, ins, out
+    yield [in1, *ins], [out]
     touch(out)
     rule1.called = True
 
 
 @rule
-def rule2(out='out'):
+def rule2(out="out"):
     rule2.called = False
-    yield out
+    yield [], [out]
     touch(out)
     rule2.called = True
 
@@ -27,18 +27,19 @@ def rule2(out='out'):
 def touch(*paths):
     for path in paths:
         time.sleep(0.01)
-        with open(path, 'w') as f:
-            f.write('*')
+        with open(path, "w") as f:
+            f.write("*")
 
 
 class TestRule(TestCase):
-
     def setUp(self):
+        self.original_cwd = os.getcwd()
         self.cwd = tempfile.mkdtemp()
         os.chdir(self.cwd)
-        touch('in1', 'in2', 'in3')
+        touch("in1", "in2", "in3")
 
     def tearDown(self):
+        os.chdir(self.original_cwd)
         shutil.rmtree(self.cwd)
 
     def test_uptodate(self):
@@ -48,10 +49,10 @@ class TestRule(TestCase):
 
     def test_mtime_changed(self):
         rule1()  # Run to create out.
-        touch('out')
+        touch("out")
         rule1()  # Run again with mtime(out) changed.
         self.assertTrue(rule1.called)
-        touch('in1')
+        touch("in1")
         rule1()  # Run again with mtime(in1) changed.
         self.assertTrue(rule1.called)
 
@@ -70,21 +71,21 @@ class TestRule(TestCase):
         self.assertFalse(rule2.called)
 
     def test_in_not_exists(self):
-        os.remove('in3')
+        os.remove("in3")
         with self.assertRaises(FileNotFoundError):
             rule1()  # Run without in3.
 
     def test_memo_not_exists(self):
-        touch('out')
+        touch("out")
         rule1()  # Run with up to date files but no memo file.
         self.assertTrue(rule1.called)
-        touch('out2')
-        rule1(out='out2')  # Run with up to date files but no memo entry.
+        touch("out2")
+        rule1(out="out2")  # Run with up to date files but no memo entry.
         self.assertTrue(rule1.called)
 
     def test_out_not_exists(self):
         rule1()  # Run to create out.
-        os.remove('out')
+        os.remove("out")
         rule1()  # Run again without out.
         self.assertTrue(rule1.called)
 
@@ -93,5 +94,5 @@ class TestRule(TestCase):
         self.assertTrue(rule2.called)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

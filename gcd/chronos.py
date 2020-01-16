@@ -6,12 +6,17 @@ from datetime import datetime, timedelta
 
 def utc(*args, **kwargs):
     if args and type(args[0]) is str:
-        iso = args[0].replace('T', ' ').rstrip('Z')
-        formats = ('%Y-%m-%d %H:%M:%S.%f', '%Y-%m-%d %H:%M:%S',
-                   '%Y-%m-%d', '%H:%M:%S.%f', '%H:%M:%S')
+        iso = args[0].replace("T", " ").rstrip("Z")
+        formats = (
+            "%Y-%m-%d %H:%M:%S.%f",
+            "%Y-%m-%d %H:%M:%S",
+            "%Y-%m-%d",
+            "%H:%M:%S.%f",
+            "%H:%M:%S",
+        )
         for format in formats:
             try:
-                return datetime.strptime(iso, format).timestamp()
+                return strptime(iso, format)
             except ValueError:
                 if format is formats[-1]:
                     raise
@@ -19,20 +24,37 @@ def utc(*args, **kwargs):
         return datetime(*args, **kwargs).timestamp()
 
 
+def iso(ts):
+    return strftime(ts, "%Y-%m-%d %H:%M:%S.%f")
+
+
+def strptime(str, format):
+    return datetime.strptime(str, format).timestamp()
+
+
+def strftime(ts, format):
+    return datetime.fromtimestamp(ts).strftime(format)
+
+
 def span(*args, **kwargs):
     return timedelta(*args, **kwargs).total_seconds()
 
 
-def iso(ts, format='%Y-%m-%d %H:%M:%S.%f'):
-    return datetime.fromtimestamp(ts).strftime(format)
+def trunc(ts, span):
+    trunc_ts = (ts // span) * span
+    return trunc_ts if trunc_ts + span > ts else ts
 
 
 def set_timezone(timezone=None):
     if timezone:
-        os.environ['TZ'] = timezone
-    elif 'TZ' in os.environ:
-        del os.environ['TZ']
+        os.environ["TZ"] = timezone
+    elif "TZ" in os.environ:
+        del os.environ["TZ"]
     time.tzset()
+
+
+def as_datetime(ts):
+    return datetime.fromtimestamp(ts)
 
 
 def as_memory(memory):
@@ -52,7 +74,6 @@ def as_timer(period_or_timer):
 
 
 class Timer:
-
     def __init__(self, period, start_at=None, align=False):
         assert not (start_at and align)
         self.period = period
@@ -79,7 +100,6 @@ class Timer:
 
 
 class LeakyBucket:
-
     def __init__(self, freq, capacity):
         self._period = 1 / freq
         self._capacity = capacity
