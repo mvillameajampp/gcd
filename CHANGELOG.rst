@@ -25,6 +25,11 @@ Bugfixes
 
 * Avoid representation errors in chronos.trunc
 
+Technical Tasks
+---------------
+
+* Improve the .gitignore to ignore more common things
+
 v1.1.2 - 2019-11-05
 ===================
 
