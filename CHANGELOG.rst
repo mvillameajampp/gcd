@@ -29,6 +29,7 @@ Technical Tasks
 ---------------
 
 * Improve the .gitignore to ignore more common things
+* Ignore flake8 rule D202 because it conflicts with black formatting
 
 v1.1.2 - 2019-11-05
 ===================
