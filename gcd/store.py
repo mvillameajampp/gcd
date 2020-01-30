@@ -237,7 +237,7 @@ class PgVacuumer:
             sr = 100 * n / max(stats.total_tuples, n)
             for clause in "TABLESAMPLE SYSTEM(%s)" % sr, "LIMIT %s" % n:
                 with Transaction(self._conn_or_pool):
-                    stats.tuple_size, = execute(
+                    (stats.tuple_size,) = execute(
                         """
                         SELECT avg(t.s) FROM (
                             SELECT pg_column_size(t.*) AS s FROM %s t %s) t
