@@ -1,30 +1,25 @@
 import os
+
 from setuptools import setup
+from itertools import chain
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 
-with open(os.path.join(current_dir, "gcd", "VERSION"), "r") as vf:
-    version = vf.read().strip()
+with open(os.path.join(current_dir, "gcd", "VERSION"), "r") as version_file:
+    version = version_file.read().strip()
 
 with open(os.path.join(current_dir, "README.rst")) as readme_file:
     readme = readme_file.read()
 
-
-extra_require = {"store": ["psycopg2"]}
-
-all_dependencies = set()
-for dependencies in extra_require.values():
-    all_dependencies.update(dependencies)
-
-extra_require["all"] = list(all_dependencies)
-
+extras_require = {"store": ["psycopg2"]}
+extras_require["all"] = list(set(chain(*extras_require.values())))
 
 setup(
     name="gcd",
     description="Utils functions for Python3",
     version=version,
     packages=["gcd"],
-    extras_require=extra_require,
+    extras_require=extras_require,
     long_description=readme,
     long_description_content_type="text/x-rst",
     classifiers=[
