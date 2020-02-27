@@ -158,7 +158,7 @@ class PgTestCase(TestCase):
         return pool
 
 
-class PrestoException(Exception):
+class PrestoError(Exception):
     pass
 
 
@@ -172,7 +172,7 @@ def query_presto_cli(query, command="presto-cli", **kwargs):
         row = proc.stdout.readline()
         if not row:
             if proc.wait() != 0:
-                raise PrestoException(proc.stderr.read().rstrip("\n"))
+                raise PrestoError(proc.stderr.read().rstrip("\n"))
             return
         yield json.loads(row)
 
