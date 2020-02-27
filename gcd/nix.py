@@ -38,6 +38,7 @@ def sh(cmd, input=None):
     if cmd[-1] == "&" or cmd[-2] == "&":
         if input is not None:
             proc.stdin.write(input)
+            proc.stdin.close()  # Avoid deadlock when reading stdout
         return proc
     else:
         output, error = proc.communicate(input)
