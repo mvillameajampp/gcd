@@ -2,6 +2,7 @@ import logging
 import random
 import re
 import time
+import json
 import psycopg2
 
 import threading as mt
@@ -155,6 +156,25 @@ class PgTestCase(TestCase):
         pool = PgConnectionPool(dbname=self.db, **kwargs)
         self._to_close.append(pool)
         return pool
+
+
+class PrestoException(Exception):
+    pass
+
+
+def query_presto_cli(query, command="presto-cli", **kwargs):
+    if query and query[-1] != ";":
+        query += ";"
+    kwargs.update(file="/dev/stdin", output_format="JSON")
+    args = ("--%s %s" % (k.replace("_", "-"), v) for k, v in kwargs.items())
+    proc = sh("%s %s |&" % (command, " ".join(args)), query)
+    while True:
+        row = proc.stdout.readline()
+        if not row:
+            if proc.wait() != 0:
+                raise PrestoException(proc.stderr.read().rstrip("\n"))
+            return
+        yield json.loads(row)
 
 
 def _execute(attr, sql, args, cursor, values, named_):
