@@ -12,24 +12,33 @@ bugs with user-visible outcomes.
 When major components get significant changes worthy of mention, they
 can be described in a Major section.
 
+v2.0.0 - 2020-01-28
+===================
+
+Changed
+-------
+
+- PX-249_ Remove flattener and vacuumer from gcd.store
+
+
 v1.2.0 - 2020-01-28
 ===================
 
 Changed
 -------
 
-* The file setup.py and removed the requirements.txt file
+- The file setup.py and removed the requirements.txt file
 
 Bugfixes
 --------
 
-* Avoid representation errors in chronos.trunc
+- Avoid representation errors in chronos.trunc
 
 Technical Tasks
 ---------------
 
-* Improve the .gitignore to ignore more common things
-* Ignore flake8 rule D202 because it conflicts with black formatting
+- Improve the .gitignore to ignore more common things
+- Ignore flake8 rule D202 because it conflicts with black formatting
 
 v1.1.2 - 2019-11-05
 ===================
@@ -37,7 +46,7 @@ v1.1.2 - 2019-11-05
 Bugfixes
 --------
 
-* Copy version file when GCD is being installed
+- Copy version file when GCD is being installed
 
 v1.1.1 - 2019-11-05
 ===================
@@ -45,7 +54,7 @@ v1.1.1 - 2019-11-05
 Bugfixes
 --------
 
-* Make sure that the requirements files are on the built package
+- Make sure that the requirements files are on the built package
 
 
 v1.1.0 - 2019-11-01
@@ -54,5 +63,8 @@ v1.1.0 - 2019-11-01
 Added
 -----
 
-* Created the documentation
-* Changelog file
+- Created the documentation
+- Changelog file
+
+
+.. _PX-249: https://jampphq.atlassian.net/browse/PX-249
