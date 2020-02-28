@@ -2,8 +2,8 @@ import logging
 import random
 import re
 import time
+import json
 import psycopg2
-
 import threading as mt
 
 from unittest import TestCase
@@ -155,6 +155,36 @@ class PgTestCase(TestCase):
         pool = PgConnectionPool(dbname=self.db, **kwargs)
         self._to_close.append(pool)
         return pool
+
+
+class PrestoError(Exception):
+    pass
+
+
+def query_presto_cli(query, command="presto-cli", **kwargs):
+    if query and query[-1] != ";":
+        query += ";"
+    kwargs.update(file="/dev/stdin", output_format="JSON")
+    args = ("--%s %s" % (k.replace("_", "-"), v) for k, v in kwargs.items())
+    proc = sh("exec %s %s |&" % (command, " ".join(args)), query)
+    try:
+        while True:
+            row = proc.stdout.readline()
+            if not row:
+                return
+            yield json.loads(row)
+    finally:
+        return_code = proc.poll()
+        if return_code == 0:
+            return
+        if return_code is not None:
+            raise PrestoError(proc.stderr.read().rstrip("\n"))
+        try:
+            proc.stdout.close()
+            proc.terminate()
+            proc.wait()
+        except Exception:
+            logger.exception("Failed to terminate presto-cli process")
 
 
 def _execute(attr, sql, args, cursor, values, named_):

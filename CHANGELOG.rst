@@ -20,6 +20,11 @@ Changed
 
 - PX-249_ Remove flattener and vacuumer from gcd.store
 
+Added
+-----
+
+- PX-250_ Implement presto query using CLI
+
 
 v1.2.0 - 2020-01-28
 ===================
@@ -68,3 +73,4 @@ Added
 
 
 .. _PX-249: https://jampphq.atlassian.net/browse/PX-249
+.. _PX-250: https://jampphq.atlassian.net/browse/PX-250
