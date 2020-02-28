@@ -19,6 +19,7 @@ Changed
 -------
 
 - PX-249_ Remove flattener and vacuumer from gcd.store
+- PX-67_ Remove gcd.cache (the only user was the sampler)
 
 Added
 -----
@@ -72,5 +73,6 @@ Added
 - Changelog file
 
 
+.. _PX-67: https://jampphq.atlassian.net/browse/PX-67
 .. _PX-249: https://jampphq.atlassian.net/browse/PX-249
 .. _PX-250: https://jampphq.atlassian.net/browse/PX-250
