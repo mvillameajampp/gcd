@@ -1,11 +1,9 @@
+# These are extra dependencies only useful in a development / CI environment
+pytest
+pytest-cov
 pre-commit
-# These are already installed by pre-commit, but you still might need to
-# install them with pip in order to use them from your editor or IDE:
 black
 flake8
 flake8-docstrings
 pylint
-
-pytest
-pytest-cov
 twine
