@@ -190,7 +190,8 @@ def query_presto_cli(query, command="presto-cli", **kwargs):
                 proc.wait()
             except Exception:
                 logger.exception("Failed to terminate %s process", command)
-        raise PrestoError(error_message)
+        if error_message:
+            raise PrestoError(error_message)
 
 
 def _execute(attr, sql, args, cursor, values, named_):
