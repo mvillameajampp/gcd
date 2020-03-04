@@ -4,6 +4,7 @@ import re
 import time
 import json
 import psycopg2
+import select
 import threading as mt
 
 from unittest import TestCase
@@ -177,14 +178,19 @@ def query_presto_cli(query, command="presto-cli", **kwargs):
         return_code = proc.poll()
         if return_code == 0:
             return
-        if return_code is not None:
-            raise PrestoError(proc.stderr.read().rstrip("\n"))
         try:
-            proc.stdout.close()
-            proc.terminate()
-            proc.wait()
-        except Exception:
-            logger.exception("Failed to terminate presto-cli process")
+            stderr = select.select([proc.stderr], [], [], 0.5)[0][0]
+            error_message = stderr.readline().rstrip("\n")
+        except IndexError:
+            error_message = "Finished or aborted with code %s" % return_code
+        if return_code is None:
+            try:
+                proc.stdout.close()
+                proc.terminate()
+                proc.wait()
+            except Exception:
+                logger.exception("Failed to terminate %s process", command)
+        raise PrestoError(error_message)
 
 
 def _execute(attr, sql, args, cursor, values, named_):
