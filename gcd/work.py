@@ -70,15 +70,21 @@ class Task(Worker):
 
     def __init__(self, period_or_timer, callback, *args, new_process=False, **kwargs):
         timer = as_timer(period_or_timer)
+        self.__stop = False
         super().__init__(
             self._run, timer, callback, args, kwargs, new_process=new_process
         )
+
+    def stop(self):
+        self.__stop = True
+        return self
 
     def _run(self, timer, callback, args, kwargs):
         while True:
             try:
                 timer.wait()
-                if callback(*args, **kwargs) is Task.Stop:
+                if self.__stop or callback(*args, **kwargs) is Task.Stop:
+                    logger.info("Task cleanly stopped")
                     return
             except Exception:
                 logger.exception("Error executing task")
