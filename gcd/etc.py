@@ -1,5 +1,7 @@
 import operator
 import logging
+import types
+import marshal
 import ctypes as ct
 
 from math import inf
@@ -61,6 +63,22 @@ class PositionalAttribute:
 
     def __set__(self, obj, val):
         getattr(obj, self.vals_attr)[self.index] = val
+
+
+# Use with care, see caveats at https://stackoverflow.com/a/1253813/2012920
+class PicklableFunction:
+    def __init__(self, fun):
+        self._fun = fun
+
+    def __call__(self, *args, **kwargs):
+        return self._fun(*args, **kwargs)
+
+    def __getstate__(self):
+        return marshal.dumps((self._fun.__code__, self._fun.__name__))
+
+    def __setstate__(self, state):
+        code, name = marshal.loads(state)
+        self._fun = types.FunctionType(code, {}, name)
 
 
 def identity(x):
