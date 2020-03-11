@@ -1,6 +1,7 @@
 import operator
 import logging
 import types
+import pickle
 import marshal
 import ctypes as ct
 
@@ -74,10 +75,17 @@ class PicklableFunction:
         return self._fun(*args, **kwargs)
 
     def __getstate__(self):
-        return marshal.dumps((self._fun.__code__, self._fun.__name__))
+        state = self._fun.__code__, self._fun.__name__
+        try:
+            return pickle.dumps(state)
+        except Exception:
+            return marshal.dumps(state)
 
     def __setstate__(self, state):
-        code, name = marshal.loads(state)
+        try:
+            code, name = pickle.loads(state)
+        except Exception:
+            code, name = marshal.loads(state)
         self._fun = types.FunctionType(code, {}, name)
 
 
