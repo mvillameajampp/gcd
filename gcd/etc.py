@@ -14,7 +14,7 @@ from contextlib import contextmanager
 logger = logging.getLogger(__name__)
 
 
-kb, mb, gb, tb = 1024, 1024 ** 2, 1024 ** 3, 1024 ** 4
+KB, MB, GB, TB = 1024, 1024 ** 2, 1024 ** 3, 1024 ** 4
 
 
 def new(call):
