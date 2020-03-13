@@ -28,6 +28,7 @@ Added
 - PX-270_
   - New helper class for (limited) serializable functions
   - New `stop` method for stopping ongoing tasks
+  - Prefetch presto results in local file
 
 
 v1.2.0 - 2020-01-28
