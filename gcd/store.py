@@ -1,4 +1,5 @@
 import logging
+import tempfile
 import random
 import re
 import time
@@ -161,30 +162,42 @@ class PrestoError(Exception):
     pass
 
 
-def query_presto_cli(query, command="presto-cli", **kwargs):
-    if query and query[-1] != ";":
+def query_presto_cli(
+    query, command="presto-cli", prefetch=False, prefetch_dir="/tmp", **kwargs
+):
+    def stdout_lines():
+        try:
+            while True:
+                line = proc.stdout.readline()
+                if not line:
+                    return
+                yield line
+        finally:
+            wait_time = 30
+            return_code = proc.wait(wait_time)
+            if return_code != 0:  # Subprocess i. has errors or ii. hasn't ended yet
+                if return_code is not None:  # i. has errors => raise exception
+                    raise PrestoError(proc.stderr.readline().rstrip("\n"))
+                try:  # ii. hasn't ended yet => terminate it (SIGTERM)
+                    logger.warning("%s hasn't ended after %s seconds", wait_time)
+                    proc.stdout.close()  # Seems to help stopping the query
+                    proc.terminate()
+                except Exception:
+                    logger.exception("Failed to terminate %s", command)
+
+    if query and query.rstrip()[-1] != ";":
         query += ";"
     kwargs.update(file="/dev/stdin", output_format="JSON")
     args = ("--%s %s" % (k.replace("_", "-"), v) for k, v in kwargs.items())
     proc = sh("exec %s %s |&" % (command, " ".join(args)), query)
-    try:
-        while True:
-            row = proc.stdout.readline()
-            if not row:
-                return
-            yield json.loads(row)
-    finally:
-        wait_time = 30
-        return_code = proc.wait(wait_time)
-        if return_code != 0:  # Subprocess i. has errors or ii. hasn't ended yet
-            if return_code is not None:  # i. has errors => raise exception
-                raise PrestoError(proc.stderr.readline().rstrip("\n"))
-            try:  # ii. hasn't ended yet => terminate it (SIGTERM)
-                logger.warning("%s hasn't cleanly ended after %s seconds", wait_time)
-                proc.stdout.close()  # This seems to help stopping the running query
-                proc.terminate()
-            except Exception:
-                logger.exception("Failed to terminate %s", command)
+    if prefetch:
+        with tempfile.TemporaryFile(dir=prefetch_dir, mode="w+") as prefetch_file:
+            for line in stdout_lines():
+                prefetch_file.write(line)
+            prefetch_file.seek(0)
+            yield from map(json.loads, prefetch_file)
+    else:
+        yield from map(json.loads, stdout_lines())
 
 
 def _execute(attr, sql, args, cursor, values, named_):

@@ -14,7 +14,7 @@ from contextlib import contextmanager
 logger = logging.getLogger(__name__)
 
 
-kb, mb, gb, tb = 1024, 1024 ** 2, 1024 ** 3, 1024 ** 4
+KB, MB, GB, TB = 1024, 1024 ** 2, 1024 ** 3, 1024 ** 4
 
 
 def new(call):
@@ -85,7 +85,7 @@ class PicklableFunction:
             self._fun = pickle.loads(state)
         except Exception:
             code, name = marshal.loads(state)
-            self._fun = types.FunctionType(code, {}, name)
+            self._fun = types.FunctionType(code, globals(), name)
 
 
 def identity(x):
