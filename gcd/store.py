@@ -185,7 +185,7 @@ def query_presto_cli(
                 except Exception:
                     logger.exception("Failed to terminate %s", command)
 
-    if query and query[-1] != ";":
+    if query and query.rstrip()[-1] != ";":
         query += ";"
     kwargs.update(file="/dev/stdin", output_format="JSON")
     args = ("--%s %s" % (k.replace("_", "-"), v) for k, v in kwargs.items())
