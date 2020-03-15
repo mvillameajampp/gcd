@@ -163,7 +163,7 @@ class PrestoError(Exception):
 
 
 def query_presto_cli(
-    query, command="presto-cli", prefetch=True, prefetch_dir="/tmp", **kwargs
+    query, command="presto-cli", prefetch=False, prefetch_dir="/tmp", **kwargs
 ):
     def stdout_lines():
         try:
@@ -191,7 +191,7 @@ def query_presto_cli(
     args = ("--%s %s" % (k.replace("_", "-"), v) for k, v in kwargs.items())
     proc = sh("exec %s %s |&" % (command, " ".join(args)), query)
     if prefetch:
-        with tempfile.TemporaryFile(dir=prefetch_dir, mode="w+") as prefetch_file:
+        with tempfile.NamedTemporaryFile(dir=prefetch_dir, mode="w+") as prefetch_file:
             for line in stdout_lines():
                 prefetch_file.write(line)
             prefetch_file.seek(0)

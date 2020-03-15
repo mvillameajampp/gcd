@@ -85,7 +85,7 @@ class PicklableFunction:
             self._fun = pickle.loads(state)
         except Exception:
             code, name = marshal.loads(state)
-            self._fun = types.FunctionType(code, {}, name)
+            self._fun = types.FunctionType(code, globals(), name)
 
 
 def identity(x):
