@@ -1,5 +1,8 @@
 import operator
 import logging
+import types
+import pickle
+import marshal
 import ctypes as ct
 
 from math import inf
@@ -11,7 +14,7 @@ from contextlib import contextmanager
 logger = logging.getLogger(__name__)
 
 
-kb, mb, gb, tb = 1024, 1024 ** 2, 1024 ** 3, 1024 ** 4
+KB, MB, GB, TB = 1024, 1024 ** 2, 1024 ** 3, 1024 ** 4
 
 
 def new(call):
@@ -61,6 +64,28 @@ class PositionalAttribute:
 
     def __set__(self, obj, val):
         getattr(obj, self.vals_attr)[self.index] = val
+
+
+# Use with care, see caveats at https://stackoverflow.com/a/1253813/2012920
+class PicklableFunction:
+    def __init__(self, fun):
+        self._fun = fun
+
+    def __call__(self, *args, **kwargs):
+        return self._fun(*args, **kwargs)
+
+    def __getstate__(self):
+        try:
+            return pickle.dumps(self._fun)
+        except Exception:
+            return marshal.dumps((self._fun.__code__, self._fun.__name__))
+
+    def __setstate__(self, state):
+        try:
+            self._fun = pickle.loads(state)
+        except Exception:
+            code, name = marshal.loads(state)
+            self._fun = types.FunctionType(code, globals(), name)
 
 
 def identity(x):

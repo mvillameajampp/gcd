@@ -25,6 +25,10 @@ Added
 -----
 
 - PX-250_ Implement presto query using CLI
+- PX-270_
+  - New helper class for (limited) serializable functions
+  - New `stop` method for stopping ongoing tasks
+  - Prefetch presto results in local file
 
 
 v1.2.0 - 2020-01-28
@@ -76,3 +80,4 @@ Added
 .. _PX-67: https://jampphq.atlassian.net/browse/PX-67
 .. _PX-249: https://jampphq.atlassian.net/browse/PX-249
 .. _PX-250: https://jampphq.atlassian.net/browse/PX-250
+.. _PX-270: https://jampphq.atlassian.net/browse/PX-270
