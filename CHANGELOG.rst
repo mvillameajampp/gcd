@@ -30,6 +30,11 @@ Added
   - New `stop` method for stopping ongoing tasks
   - Prefetch presto results in local file
 
+Fixed
+-----
+
+- PX-302_ Fix default max limit in etc.clip
+
 
 v1.2.0 - 2020-01-28
 ===================
@@ -81,3 +86,4 @@ Added
 .. _PX-249: https://jampphq.atlassian.net/browse/PX-249
 .. _PX-250: https://jampphq.atlassian.net/browse/PX-250
 .. _PX-270: https://jampphq.atlassian.net/browse/PX-270
+.. _PX-302: https://jampphq.atlassian.net/browse/PX-302

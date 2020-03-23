@@ -100,7 +100,7 @@ def coalesce(obj, default):
     return default if obj is None else obj
 
 
-def clip(value, min_value=-inf, max_value=-inf):
+def clip(value, min_value=-inf, max_value=inf):
     return max(min_value, min(value, max_value))
 
 
