@@ -12,6 +12,14 @@ bugs with user-visible outcomes.
 When major components get significant changes worthy of mention, they
 can be described in a Major section.
 
+v2.1.0 - 2020-04-22
+===================
+
+Changed
+-------
+
+- PX-362_ Support marshalling of default arguments
+
 v2.0.0 - 2020-01-28
 ===================
 
@@ -87,3 +95,4 @@ Added
 .. _PX-250: https://jampphq.atlassian.net/browse/PX-250
 .. _PX-270: https://jampphq.atlassian.net/browse/PX-270
 .. _PX-302: https://jampphq.atlassian.net/browse/PX-302
+.. _PX-362: https://jampphq.atlassian.net/browse/PX-362

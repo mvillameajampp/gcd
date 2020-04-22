@@ -75,17 +75,21 @@ class PicklableFunction:
         return self._fun(*args, **kwargs)
 
     def __getstate__(self):
+        fun = self._fun
         try:
-            return pickle.dumps(self._fun)
+            return pickle.dumps(fun)
         except Exception:
-            return marshal.dumps((self._fun.__code__, self._fun.__name__))
+            return pickle.dumps(
+                (marshal.dumps(fun.__code__), fun.__name__, fun.__defaults__)
+            )
 
     def __setstate__(self, state):
-        try:
-            self._fun = pickle.loads(state)
-        except Exception:
-            code, name = marshal.loads(state)
-            self._fun = types.FunctionType(code, globals(), name)
+        self._fun = pickle.loads(state)
+        if type(self._fun) is tuple:
+            code, name, defaults = self._fun
+            self._fun = types.FunctionType(
+                marshal.loads(code), globals(), name, defaults
+            )
 
 
 def identity(x):

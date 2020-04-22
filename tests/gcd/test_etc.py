@@ -74,7 +74,7 @@ class Test(TestCase):
             logger.setLevel(level)
 
     def test_picklable_function(self):
-        def unpicklable(x, y):
+        def unpicklable(x, y=3):
             return x + y
 
         picklable_ = PicklableFunction(picklable)
@@ -84,6 +84,7 @@ class Test(TestCase):
         unpicklable_ = PicklableFunction(unpicklable)
         unpicklable__ = pickle.loads(pickle.dumps(unpicklable_))
         self.assertEqual(unpicklable__(2, 2), 4)
+        self.assertEqual(unpicklable__(2), 5)
 
 
 def picklable(x, y):
