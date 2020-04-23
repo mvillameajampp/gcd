@@ -12,7 +12,7 @@ bugs with user-visible outcomes.
 When major components get significant changes worthy of mention, they
 can be described in a Major section.
 
-v2.1.0 - 2020-04-22
+v2.1.0 - Unreleased
 ===================
 
 Changed
