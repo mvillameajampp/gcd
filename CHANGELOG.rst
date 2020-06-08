@@ -12,6 +12,14 @@ bugs with user-visible outcomes.
 When major components get significant changes worthy of mention, they
 can be described in a Major section.
 
+v3.0.0 - Unreleased
+===================
+
+Changed
+-------
+
+- Removed PicklableFunction
+
 v2.1.0 - 2020-04-30
 ===================
 

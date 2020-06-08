@@ -1,8 +1,5 @@
 import operator
 import logging
-import types
-import pickle
-import marshal
 import ctypes as ct
 
 from math import inf
@@ -64,31 +61,6 @@ class PositionalAttribute:
 
     def __set__(self, obj, val):
         getattr(obj, self.vals_attr)[self.index] = val
-
-
-# Use with care, see caveats at https://stackoverflow.com/a/1253813/2012920
-class PicklableFunction:
-    def __init__(self, fun):
-        self._fun = fun
-
-    def __call__(self, *args, **kwargs):
-        return self._fun(*args, **kwargs)
-
-    def __getstate__(self):
-        fun = self._fun
-        try:
-            return pickle.dumps(fun)
-        except Exception:
-            return marshal.dumps(fun.__code__), fun.__name__, fun.__defaults__
-
-    def __setstate__(self, state):
-        if type(state) is tuple:
-            code, name, defaults = state
-            self._fun = types.FunctionType(
-                marshal.loads(code), globals(), name, defaults
-            )
-        else:
-            self._fun = pickle.loads(state)
 
 
 def identity(x):
