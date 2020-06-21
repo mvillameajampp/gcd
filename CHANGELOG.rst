@@ -18,7 +18,8 @@ v3.0.0 - Unreleased
 Changed
 -------
 
-- Removed PicklableFunction
+- Removed etc.PicklableFunction
+- Removed work.sorted
 
 v2.1.0 - 2020-04-30
 ===================

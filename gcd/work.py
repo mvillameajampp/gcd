@@ -1,13 +1,11 @@
 import logging
-import heapq
 import multiprocessing as mp
 import threading as mt
 
-from math import inf
 from queue import Empty, Queue
 
-from gcd.etc import identity, new
-from gcd.chronos import as_timer, span
+from gcd.etc import new
+from gcd.chronos import as_timer
 
 
 logger = logging.getLogger(__name__)
@@ -182,37 +180,6 @@ def dequeue(queue, at_least=0, at_most=None):
             yield queue.get_nowait()
     except Empty:
         pass
-
-
-def sorter(get, item=identity, log_period=span(minutes=5), max_ooo=None):
-    max_ooo = max_ooo or default_hwm
-    if max_ooo < inf and log_period:
-
-        def log():
-            nonlocal seen, lost
-            if lost:
-                logger.info(dict(seen=seen, lost=lost))
-                seen = lost = 0
-
-        Task(log_period, log)
-    heap = []
-    max_seq = -1
-    out_seq = seen = lost = 0
-    while True:
-        seq, data = item(get())
-        seen += 1
-        if seq < out_seq:
-            continue
-        max_seq = max(max_seq, seq)
-        heapq.heappush(heap, (seq, data))
-        while heap:
-            seq, data = heap[0]
-            if seq > out_seq and max_seq - seq < max_ooo:
-                break
-            lost += seq - out_seq
-            out_seq = seq + 1
-            heapq.heappop(heap)
-            yield seq, data
 
 
 def packer(put, size):
