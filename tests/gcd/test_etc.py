@@ -1,5 +1,4 @@
 import logging
-import pickle
 
 from unittest import TestCase, main
 
@@ -10,7 +9,6 @@ from gcd.etc import (
     as_many,
     retry_on,
     Bundle,
-    PicklableFunction,
 )
 
 
@@ -72,19 +70,6 @@ class Test(TestCase):
             self.assertEqual(ncalls, 6)
         finally:
             logger.setLevel(level)
-
-    def test_picklable_function(self):
-        def unpicklable(x, y=3):
-            return x + y
-
-        picklable_ = PicklableFunction(picklable)
-        picklable__ = pickle.loads(pickle.dumps(picklable_))
-        self.assertEqual(picklable__(2, 2), 4)
-
-        unpicklable_ = PicklableFunction(unpicklable)
-        unpicklable__ = pickle.loads(pickle.dumps(unpicklable_))
-        self.assertEqual(unpicklable__(2, 2), 4)
-        self.assertEqual(unpicklable__(2), 5)
 
 
 def picklable(x, y):
