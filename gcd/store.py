@@ -204,20 +204,20 @@ def query_presto_cli(
                     )
                     now = time.time()
             prefetch_file.seek(0)
-            minutes = (time.time() - now) / 60
-            bytes_ = log2(lens)
+            seconds = (time.time() - now)
+            bytes_ = lens / 1e6
             logging.info(
                 "Finished dumping."
                 + "\n rows: %s"
-                + "\n bytes: %s"
+                + "\n GB: %s"
                 + "\n minutes: %s"
-                + "\n rows per minute: %s"
-                + "\n bytes per minute: %s",
+                + "\n rows per second: %s"
+                + "\n GB per minute: %s",
                 row,
                 bytes_,
-                minutes,
-                row / minutes,
-                bytes_ / minutes
+                seconds / 60,
+                row / seconds,
+                bytes_ / seconds
             )
             yield from map(json.loads, prefetch_file)
     else:
