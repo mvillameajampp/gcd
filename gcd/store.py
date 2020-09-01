@@ -211,8 +211,8 @@ def query_presto_cli(
                 + "\n rows: %s"
                 + "\n GB: %s"
                 + "\n minutes: %s"
-                + "\n rows per second: %s"
-                + "\n GB per minute: %s",
+                + "\n rows/s: %s"
+                + "\n GB/s: %s",
                 row,
                 bytes_,
                 seconds / 60,
