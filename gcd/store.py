@@ -6,6 +6,7 @@ import time
 import json
 import psycopg2
 import threading as mt
+from math import log2
 
 from unittest import TestCase
 from psycopg2.pool import ThreadedConnectionPool
@@ -193,18 +194,30 @@ def query_presto_cli(
     if prefetch:
         with tempfile.TemporaryFile(dir=prefetch_dir, mode="w+") as prefetch_file:
             now = time.time()
-            for i, line in enumerate(stdout_lines()):
+            lens = 0
+            for row, line in enumerate(stdout_lines()):
+                lens += len(line)
                 prefetch_file.write(line)
-                if i == 0:
+                if row == 0:
                     logging.info(
                         'First row dumped, took %s minutes', (time.time() - now) / 60
                     )
                     now = time.time()
             prefetch_file.seek(0)
+            minutes = (time.time() - now) / 60
+            bytes_ = log2(lens)
             logging.info(
-                'Finished dumping %s rows to  file, took %s minutes',
-                i,
-                (time.time() - now) / 60
+                "Finished dumping."
+                + "\n rows: %s"
+                + "\n bytes: %s"
+                + "\n minutes: %s"
+                + "\n rows per minute: %s"
+                + "\n bytes per minute: %s",
+                row,
+                bytes_,
+                minutes,
+                row / minutes,
+                bytes_ / minutes
             )
             yield from map(json.loads, prefetch_file)
     else:
