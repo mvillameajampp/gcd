@@ -192,9 +192,20 @@ def query_presto_cli(
     proc = sh("exec %s %s |&" % (command, " ".join(args)), query)
     if prefetch:
         with tempfile.TemporaryFile(dir=prefetch_dir, mode="w+") as prefetch_file:
-            for line in stdout_lines():
+            now = time.time()
+            for i, line in enumerate(stdout_lines()):
                 prefetch_file.write(line)
+                if i == 0:
+                    logging.info(
+                        'First row dumped, took %s minutes', (time.time() - now) / 60
+                    )
+                    now = time.time()
             prefetch_file.seek(0)
+            logging.info(
+                'Finished dumping %s rows to  file, took %s minutes',
+                i,
+                (time.time() - now) / 60
+            )
             yield from map(json.loads, prefetch_file)
     else:
         yield from map(json.loads, stdout_lines())
