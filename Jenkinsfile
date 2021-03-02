@@ -13,7 +13,7 @@ pipeline {
                 script {
                     docker.image(
                         "docker.jampp.com/pythontest-image-builder:${PYTHONTEST_IMAGE_VERSION}"
-                    ).inside("-v ${WORKSPACE}:/src -e PYTHON_PRE_DEPENDENCIES=pyscopg2 ")  {
+                    ).inside("-v ${WORKSPACE}:/src -e PYTHON_PRE_DEPENDENCIES=psycopg2 ")  {
                         sh "/docker-entrypoint.sh pytest_coverage"
                     }
                 }
