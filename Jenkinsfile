@@ -6,9 +6,9 @@ pipeline {
         PYTHONTEST_IMAGE_VERSION = "3.2.0-python3.6"
     }
     stages {
-      // Leech tests
-        stage("leech_ci") {
-            when { changeset "leech/*" }
+      // Gcd tests
+        stage("gcd_ci") {
+            when { changeset "gcd/*" }
             steps {
                 script {
                     docker.image(

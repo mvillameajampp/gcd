@@ -12,6 +12,11 @@ bugs with user-visible outcomes.
 When major components get significant changes worthy of mention, they
 can be described in a Major section.
 
+v3.0.1 - Unreleased
+===================
+
+- PREDEX-471: Migration to new CI
+
 v3.0.0 - 2020-06-24
 ===================
 
