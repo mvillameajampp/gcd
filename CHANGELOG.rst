@@ -15,7 +15,7 @@ can be described in a Major section.
 v3.0.1 - Unreleased
 ===================
 
-- PREDEX-471: Migration to new CI
+- PREDEX-471_: Migration to new CI
 
 v3.0.0 - 2020-06-24
 ===================
@@ -110,3 +110,4 @@ Added
 .. _PX-270: https://jampphq.atlassian.net/browse/PX-270
 .. _PX-302: https://jampphq.atlassian.net/browse/PX-302
 .. _PX-362: https://jampphq.atlassian.net/browse/PX-362
+.. _PREDEX-471: https://jampphq.atlassian.net/browse/PREDEX-471
