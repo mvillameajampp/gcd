@@ -14,7 +14,7 @@ pipeline {
                     docker.image(
                         "docker.jampp.com/pythontest-image-builder:${PYTHONTEST_IMAGE_VERSION}"
                     ).inside("-v ${WORKSPACE}:/src")  {
-                        sh "/docker-entrypoint.sh pytest_coverage"
+                        sh "/docker-entrypoint.sh pytest_coverage --pip-install-all"
                     }
                 }
                 junit 'output.xml'
