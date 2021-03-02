@@ -13,8 +13,8 @@ pipeline {
                 script {
                     docker.image(
                         "docker.jampp.com/pythontest-image-builder:${PYTHONTEST_IMAGE_VERSION}"
-                    ).inside("-v ${WORKSPACE}:/src")  {
-                        sh "/docker-entrypoint.sh pytest_coverage --pip-install-all --requires-wheel"
+                    ).inside("-v ${WORKSPACE}:/src -e PYTHON_PRE_DEPENDENCIES=pyscopg2 ")  {
+                        sh "/docker-entrypoint.sh pytest_coverage"
                     }
                 }
                 junit 'output.xml'
