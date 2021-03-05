@@ -165,8 +165,7 @@ class PgTestCase(TestCase):
             password=os.environ.get("PGPASSWORD"),
             dbname=os.environ.get("PGDATABASE", "postgres")
         )
-        conn_str = " ".join("%s=%s" % (k, v) for k, v in dbparams.items() if v)
-        conn = psycopg2.connect(conn_str)
+        conn = psycopg2.connect(**{k: v for k, v in dbparams.items() if v})
         conn.autocommit = True
         cur = conn.cursor()
         cur.execute("DROP DATABASE IF EXISTS %s;" % self.db)
