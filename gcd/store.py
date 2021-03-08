@@ -138,14 +138,13 @@ class PgTestCase(TestCase):
     db = "test"
 
     def setUp(self):
-        sh(("{ dropdb --if-exists %s > /dev/null 2>&1 ; } || true", self.db))
-        sh(("createdb %s", self.db))
+        self._drop_create_db(True)
         self._to_close = []
 
     def tearDown(self):
         for conn_or_pool in self._to_close:
             conn_or_pool.close()
-        sh(("{ dropdb %s > /dev/null 2>&1 ; } || true", self.db))
+        self._drop_create_db(False)
 
     def connect(self, **kwargs):
         conn = psycopg2.connect(dbname=self.db, **kwargs)
@@ -156,6 +155,17 @@ class PgTestCase(TestCase):
         pool = PgConnectionPool(dbname=self.db, **kwargs)
         self._to_close.append(pool)
         return pool
+
+    def _drop_create_db(self, create):
+        # Finds other credentials as environment variables
+        conn = psycopg2.connect(dbname="postgres")
+        conn.autocommit = True
+        cur = conn.cursor()
+        cur.execute("DROP DATABASE IF EXISTS %s;" % self.db)
+        if create:
+            cur.execute("CREATE DATABASE %s;" % self.db)
+        cur.close()
+        conn.close()
 
 
 class PrestoError(Exception):
