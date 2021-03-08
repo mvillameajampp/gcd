@@ -1,6 +1,5 @@
 import logging
 import tempfile
-import os
 import random
 import re
 import time
