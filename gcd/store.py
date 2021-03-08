@@ -158,14 +158,8 @@ class PgTestCase(TestCase):
         return pool
 
     def _drop_create_db(self, create):
-        dbparams = dict(
-            host=os.environ.get("PGHOST"),
-            port=os.environ.get("PGPORT"),
-            user=os.environ.get("PGUSER"),
-            password=os.environ.get("PGPASSWORD"),
-            dbname=os.environ.get("PGDATABASE", "postgres")
-        )
-        conn = psycopg2.connect(**{k: v for k, v in dbparams.items() if v})
+        # Finds other credentials as environment variables
+        conn = psycopg2.connect(dbname="postgres")
         conn.autocommit = True
         cur = conn.cursor()
         cur.execute("DROP DATABASE IF EXISTS %s;" % self.db)
