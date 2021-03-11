@@ -8,7 +8,6 @@ pipeline {
     stages {
       // Gcd tests
         stage("gcd_ci") {
-            when { changeset "gcd/*" }
             steps {
                 script {
                     docker.image(
